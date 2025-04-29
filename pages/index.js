@@ -5,6 +5,11 @@ import axios from "axios";
 import {Container, Row, Col, Form, Button, Card, ListGroup, InputGroup, Dropdown} from 'react-bootstrap';
 import {useRouter} from 'next/router';
 import Cookies from 'js-cookie';
+// At the top of your file, add these imports
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 
 
 export default function Home() {
@@ -303,14 +308,48 @@ export default function Home() {
                     }}
                 >
                     <ListGroup variant="flush">
-                        {chatHistory.map((msg, idx) => (<ListGroup.Item
-                            key={idx}
-                            className={`border-0 ${msg.sender === 'Bot' ? 'bg-light' : 'bg-white'}`}
-                        >
-                            <strong className={msg.sender === 'Bot' ? 'text-primary' : 'text-success'}>
-                                {msg.sender}:
-                            </strong> {msg.text}
-                        </ListGroup.Item>))}
+                        {chatHistory.map((msg, idx) => (
+                            <ListGroup.Item
+                                key={idx}
+                                className={`border-0 mb-2 rounded ${msg.sender === 'Bot' ? 'bot-message' : 'user-message'}`}
+                            >
+                                <div className="message-header">
+                                    <strong className={msg.sender === 'Bot' ? 'text-primary' : 'text-success'}>
+                                        {msg.sender}
+                                    </strong>
+                                </div>
+                                <div className="message-content">
+                                    {msg.sender === 'Bot' ? (
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm]}
+                                            components={{
+                                                code({node, inline, className, children, ...props}) {
+                                                    const match = /language-(\w+)/.exec(className || '');
+                                                    return !inline && match ? (
+                                                        <SyntaxHighlighter
+                                                            style={vscDarkPlus}
+                                                            language={match[1]}
+                                                            PreTag="div"
+                                                            {...props}
+                                                        >
+                                                            {String(children).replace(/\n$/, '')}
+                                                        </SyntaxHighlighter>
+                                                    ) : (
+                                                        <code className={className} {...props}>
+                                                            {children}
+                                                        </code>
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            {msg.text}
+                                        </ReactMarkdown>
+                                    ) : (
+                                        <div>{msg.text}</div>
+                                    )}
+                                </div>
+                            </ListGroup.Item>
+                        ))}
                     </ListGroup>
                 </div>
                 <InputGroup>
