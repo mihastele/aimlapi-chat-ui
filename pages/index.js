@@ -4,6 +4,7 @@ import {useState, useEffect} from "react";
 import axios from "axios";
 import {Container, Row, Col, Form, Button, Card, ListGroup, InputGroup, Dropdown} from 'react-bootstrap';
 
+
 export default function Home() {
     const [config, setConfig] = useState({
         searxng_enabled: false, searxng_domain: "", searxng_engine: "google", deep_thinking: false,
@@ -65,16 +66,16 @@ export default function Home() {
         // Create a new chat session
         createNewChatSession();
 
-        // refreshModels();
+        refreshModels();
     }, []);
 
     // // Function to refresh models
-    // const refreshModels = () => {
-    //     axios
-    //         .get("/api/models")
-    //         .then((res) => setModels(res.data.models))
-    //         .catch((err) => console.error("Error getting models:", err));
-    // };
+    const refreshModels = () => {
+        axios
+            .get("/api/models")
+            .then((res) => setModels(res.data.models))
+            .catch((err) => console.error("Error getting models:", err));
+    };
 
     // Function to refresh the models via the refresh endpoint
     const handleRefreshModels = () => {
