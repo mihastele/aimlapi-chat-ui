@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { Container, Row, Col, Form, Button, Card, ListGroup, InputGroup } from 'react-bootstrap';
 
 export default function Home() {
     const [config, setConfig] = useState({
@@ -75,159 +76,156 @@ export default function Home() {
     };
 
     return (
-        <div style={{ padding: 20, fontFamily: "Arial, sans-serif" }}>
-            <h1>Next.js Chat Application</h1>
+        <Container className="py-4">
+            <Row className="mb-4">
+                <Col>
+                    <h1 className="text-primary">Next.js Chat Application</h1>
+                </Col>
+            </Row>
 
             {/* Configuration Section */}
-            <div
-                style={{
-                    border: "1px solid #ccc",
-                    padding: 10,
-                    marginBottom: 20,
-                }}
-            >
-                <h2>Configuration</h2>
-                <div>
-                    <label>
-                        <input
-                            type="checkbox"
-                            checked={config.searxng_enabled}
-                            onChange={(e) =>
-                                setConfig({ ...config, searxng_enabled: e.target.checked })
-                            }
-                        />{" "}
-                        SearxNG Enabled
-                    </label>
-                </div>
-                <div>
-                    <label>
-                        SearxNG Domain:
-                        <input
-                            type="text"
-                            value={config.searxng_domain}
-                            onChange={(e) =>
-                                setConfig({ ...config, searxng_domain: e.target.value })
-                            }
-                            placeholder="e.g. https://your.searxng.instance"
-                            style={{ marginLeft: 10 }}
-                        />
-                    </label>
-                </div>
-                <div>
-                    <label>
-                        <input
-                            type="checkbox"
-                            checked={config.deep_thinking}
-                            onChange={(e) =>
-                                setConfig({ ...config, deep_thinking: e.target.checked })
-                            }
-                        />{" "}
-                        Deep Thinking Enabled
-                    </label>
-                </div>
-                <button onClick={handleConfigChange} style={{ marginTop: 10 }}>
-                    Update Config
-                </button>
-            </div>
+            <Card className="mb-4 shadow-sm">
+                <Card.Header className="bg-primary text-white">
+                    <h2 className="h5 mb-0">Configuration</h2>
+                </Card.Header>
+                <Card.Body>
+                    <Form>
+                        <Form.Group className="mb-3">
+                            <Form.Check 
+                                type="checkbox"
+                                id="searxng-enabled"
+                                label="SearxNG Enabled"
+                                checked={config.searxng_enabled}
+                                onChange={(e) => setConfig({ ...config, searxng_enabled: e.target.checked })}
+                            />
+                        </Form.Group>
+
+                        <Form.Group className="mb-3">
+                            <Form.Label>SearxNG Domain</Form.Label>
+                            <Form.Control
+                                type="text"
+                                value={config.searxng_domain}
+                                onChange={(e) => setConfig({ ...config, searxng_domain: e.target.value })}
+                                placeholder="e.g. https://your.searxng.instance"
+                            />
+                        </Form.Group>
+
+                        <Form.Group className="mb-3">
+                            <Form.Check 
+                                type="checkbox"
+                                id="deep-thinking"
+                                label="Deep Thinking Enabled"
+                                checked={config.deep_thinking}
+                                onChange={(e) => setConfig({ ...config, deep_thinking: e.target.checked })}
+                            />
+                        </Form.Group>
+
+                        <Button variant="primary" onClick={handleConfigChange}>
+                            Update Config
+                        </Button>
+                    </Form>
+                </Card.Body>
+            </Card>
 
             {/* API Settings Section */}
-            <div
-                style={{
-                    border: "1px solid #ccc",
-                    padding: 10,
-                    marginBottom: 20,
-                }}
-            >
-                <h2>API Settings</h2>
-                <div>
-                    <label>
-                        API URL:
-                        <input
-                            type="text"
-                            value={apiUrl}
-                            onChange={(e) => setApiUrl(e.target.value)}
-                            placeholder="e.g. https://api.openai.com"
-                            style={{ marginLeft: 10, width: "300px" }}
-                        />
-                    </label>
-                </div>
-                <div>
-                    <label>
-                        API Key:
-                        <input
-                            type="password"
-                            value={apiKey}
-                            onChange={(e) => setApiKey(e.target.value)}
-                            placeholder="Your API Key"
-                            style={{ marginLeft: 10, width: "300px" }}
-                        />
-                    </label>
-                </div>
-            </div>
+            <Card className="mb-4 shadow-sm">
+                <Card.Header className="bg-primary text-white">
+                    <h2 className="h5 mb-0">API Settings</h2>
+                </Card.Header>
+                <Card.Body>
+                    <Form>
+                        <Form.Group className="mb-3">
+                            <Form.Label>API URL</Form.Label>
+                            <Form.Control
+                                type="text"
+                                value={apiUrl}
+                                onChange={(e) => setApiUrl(e.target.value)}
+                                placeholder="e.g. https://api.openai.com"
+                            />
+                        </Form.Group>
+
+                        <Form.Group className="mb-3">
+                            <Form.Label>API Key</Form.Label>
+                            <Form.Control
+                                type="password"
+                                value={apiKey}
+                                onChange={(e) => setApiKey(e.target.value)}
+                                placeholder="Your API Key"
+                            />
+                        </Form.Group>
+                    </Form>
+                </Card.Body>
+            </Card>
 
             {/* Models Section */}
-            <div
-                style={{
-                    border: "1px solid #ccc",
-                    padding: 10,
-                    marginBottom: 20,
-                }}
-            >
-                <h2>Available Models</h2>
-                <select
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    style={{ marginRight: 10 }}
-                >
-                    {models.map((model, idx) => (
-                        <option key={idx} value={model}>
-                            {model}
-                        </option>
-                    ))}
-                </select>
-                <button onClick={refreshModels}>Refresh (GET)</button>
-                <button onClick={handleRefreshModels} style={{ marginLeft: 10 }}>
-                    Refresh (POST)
-                </button>
-            </div>
+            <Card className="mb-4 shadow-sm">
+                <Card.Header className="bg-primary text-white">
+                    <h2 className="h5 mb-0">Available Models</h2>
+                </Card.Header>
+                <Card.Body>
+                    <InputGroup className="mb-3">
+                        <Form.Select
+                            value={selectedModel}
+                            onChange={(e) => setSelectedModel(e.target.value)}
+                        >
+                            {models.map((model, idx) => (
+                                <option key={idx} value={model}>
+                                    {model}
+                                </option>
+                            ))}
+                        </Form.Select>
+                        <Button variant="outline-primary" onClick={refreshModels}>
+                            Refresh (GET)
+                        </Button>
+                        <Button variant="outline-secondary" onClick={handleRefreshModels}>
+                            Refresh (POST)
+                        </Button>
+                    </InputGroup>
+                </Card.Body>
+            </Card>
 
             {/* Chat Section */}
-            <div style={{ border: "1px solid #ccc", padding: 10 }}>
-                <h2>Chat</h2>
-                <div
-                    style={{
-                        height: 300,
-                        overflowY: "auto",
-                        border: "1px solid #eee",
-                        padding: 10,
-                        marginBottom: 10,
-                        backgroundColor: "#f9f9f9",
-                    }}
-                >
-                    {chatHistory.map((msg, idx) => (
-                        <div key={idx} style={{ marginBottom: 8 }}>
-                            <strong>{msg.sender}:</strong> {msg.text}
-                        </div>
-                    ))}
-                </div>
-                <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Type your message..."
-                    style={{
-                        width: "70%",
-                        padding: 8,
-                        marginRight: 10,
-                    }}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSendMessage();
-                    }}
-                />
-                <button onClick={handleSendMessage} style={{ padding: "8px 16px" }}>
-                    Send
-                </button>
-            </div>
-        </div>
+            <Card className="shadow">
+                <Card.Header className="bg-primary text-white">
+                    <h2 className="h5 mb-0">Chat</h2>
+                </Card.Header>
+                <Card.Body>
+                    <div 
+                        className="bg-light p-3 mb-3 rounded" 
+                        style={{ 
+                            height: '300px', 
+                            overflowY: 'auto' 
+                        }}
+                    >
+                        <ListGroup variant="flush">
+                            {chatHistory.map((msg, idx) => (
+                                <ListGroup.Item 
+                                    key={idx} 
+                                    className={`border-0 ${msg.sender === 'Bot' ? 'bg-light' : 'bg-white'}`}
+                                >
+                                    <strong className={msg.sender === 'Bot' ? 'text-primary' : 'text-success'}>
+                                        {msg.sender}:
+                                    </strong> {msg.text}
+                                </ListGroup.Item>
+                            ))}
+                        </ListGroup>
+                    </div>
+                    <InputGroup>
+                        <Form.Control
+                            type="text"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            placeholder="Type your message..."
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSendMessage();
+                            }}
+                        />
+                        <Button variant="primary" onClick={handleSendMessage}>
+                            Send
+                        </Button>
+                    </InputGroup>
+                </Card.Body>
+            </Card>
+        </Container>
     );
 }
