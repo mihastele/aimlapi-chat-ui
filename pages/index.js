@@ -15,23 +15,36 @@ export default function Home() {
     const [selectedModel, setSelectedModel] = useState("gpt-3.5");
     const [models, setModels] = useState([]);
 
-    // Load initial config and models data
+    // Load initial config, API settings, and models data
     useEffect(() => {
+        // Load config
         axios
             .get("/api/config")
             .then((res) => setConfig(res.data))
             .catch((err) => console.error("Error getting config:", err));
 
-        refreshModels();
+        // Load API settings
+        axios
+            .get("/api/api-settings")
+            .then((res) => {
+                setApiUrl(res.data.api_url || "");
+                // Don't set the API key if it's masked
+                if (res.data.api_key && res.data.api_key !== "********") {
+                    setApiKey(res.data.api_key);
+                }
+            })
+            .catch((err) => console.error("Error getting API settings:", err));
+
+        // refreshModels();
     }, []);
 
-    // Function to refresh models
-    const refreshModels = () => {
-        axios
-            .get("/api/models")
-            .then((res) => setModels(res.data.models))
-            .catch((err) => console.error("Error getting models:", err));
-    };
+    // // Function to refresh models
+    // const refreshModels = () => {
+    //     axios
+    //         .get("/api/models")
+    //         .then((res) => setModels(res.data.models))
+    //         .catch((err) => console.error("Error getting models:", err));
+    // };
 
     // Function to refresh the models via the refresh endpoint
     const handleRefreshModels = () => {
@@ -138,6 +151,26 @@ export default function Home() {
                             placeholder="Your API Key"
                         />
                     </Form.Group>
+
+                    <Button 
+                        variant="primary" 
+                        onClick={() => {
+                            // Save API settings to the database
+                            axios.post("/api/api-settings", {
+                                api_url: apiUrl,
+                                api_key: apiKey
+                            })
+                            .then(res => {
+                                alert("API settings saved successfully!");
+                            })
+                            .catch(err => {
+                                console.error("Error saving API settings:", err);
+                                alert("Error saving API settings: " + (err.response?.data?.error || err.message));
+                            });
+                        }}
+                    >
+                        Save API Settings
+                    </Button>
                 </Form>
             </Card.Body>
         </Card>
@@ -157,11 +190,11 @@ export default function Home() {
                             {model}
                         </option>))}
                     </Form.Select>
-                    <Button variant="outline-primary" onClick={refreshModels}>
-                        Refresh (GET)
-                    </Button>
+                    {/*<Button variant="outline-primary" onClick={refreshModels}>*/}
+                    {/*    Refresh (GET)*/}
+                    {/*</Button>*/}
                     <Button variant="outline-secondary" onClick={handleRefreshModels}>
-                        Refresh (POST)
+                        Refresh
                     </Button>
                 </InputGroup>
             </Card.Body>

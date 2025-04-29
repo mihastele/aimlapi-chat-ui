@@ -1,11 +1,19 @@
 // pages/api/models.js
 
-let MODELS = ["gpt-3.5", "gpt-4", "custom-model"];
+import { getModels } from '../../lib/db';
 
 export default function handler(req, res) {
     if (req.method === "GET") {
-        // TODO fetch from api endpoint /models
-        res.status(200).json({ models: MODELS });
+        // Fetch models from the database
+        const models = getModels();
+
+        // If no models in database, return default models
+        if (models.length === 0) {
+            const defaultModels = ["gpt-3.5", "gpt-4", "custom-model"];
+            res.status(200).json({ models: defaultModels });
+        } else {
+            res.status(200).json({ models });
+        }
     } else {
         res.status(405).json({ error: "Method not allowed" });
     }
