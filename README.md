@@ -94,6 +94,12 @@ To learn more about Next.js, take a look at the following resources:
 
 # Setting up SearXNG and API for AIMLAPI
 
+## Searxng
+The easiest way to set up https://docs.searxng.org/admin/installation-docker.html
+after you run this, you must edit the settings and allow json and other types of output in the settings folder that gets created
+then stop the container and re-run.
+
+## AIMLAPI
 For better documentation check AI ML API Docs https://docs.aimlapi.com/quickstart/setting-up
 
 ### Set API URL

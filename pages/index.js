@@ -3,9 +3,11 @@
 import {useState, useEffect} from "react";
 import axios from "axios";
 import {Container, Row, Col, Form, Button, Card, ListGroup, InputGroup, Dropdown} from 'react-bootstrap';
+import { useRouter } from 'next/router';
 
 
 export default function Home() {
+    const router = useRouter();
     const [config, setConfig] = useState({
         searxng_enabled: false, searxng_domain: "", searxng_engine: "google", deep_thinking: false,
     });
@@ -148,8 +150,14 @@ export default function Home() {
 
     return (<Container className="py-4">
         <Row className="mb-4">
-            <Col>
+            <Col className="d-flex justify-content-between align-items-center">
                 <h1 className="text-primary">AIMLAPI Chat UI</h1>
+                <Button 
+                    variant="outline-primary" 
+                    onClick={() => router.push('/model-generator')}
+                >
+                    3D Model Generator
+                </Button>
             </Col>
         </Row>
 
