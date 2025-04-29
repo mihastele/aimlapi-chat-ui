@@ -3,7 +3,8 @@
 import {useState, useEffect} from "react";
 import axios from "axios";
 import {Container, Row, Col, Form, Button, Card, ListGroup, InputGroup, Dropdown} from 'react-bootstrap';
-import { useRouter } from 'next/router';
+import {useRouter} from 'next/router';
+import Cookies from 'js-cookie';
 
 
 export default function Home() {
@@ -23,9 +24,12 @@ export default function Home() {
     // Function to create a new chat session
     const createNewChatSession = () => {
         axios
-            .post("/api/chat-history", { action: "create_session" })
+            .post("/api/chat-history", {action: "create_session"})
             .then((res) => {
-                setCurrentSessionId(res.data.sessionId);
+                const sessionId = res.data.sessionId;
+                setCurrentSessionId(sessionId);
+                // Save session ID in cookie (expires in 7 days)
+                Cookies.set('chat_session_id', sessionId, { expires: 14 });
                 setChatHistory([]);
             })
             .catch((err) => console.error("Error creating chat session:", err));
@@ -65,8 +69,15 @@ export default function Home() {
             })
             .catch((err) => console.error("Error getting API settings:", err));
 
-        // Create a new chat session
-        createNewChatSession();
+        const existingSessionId = Cookies.get('chat_session_id');
+        if (existingSessionId) {
+            setCurrentSessionId(existingSessionId);
+            // Load messages for this session
+            loadChatMessages(existingSessionId);
+        } else {
+            // Create a new chat session if no existing session
+            createNewChatSession();
+        }
 
         refreshModels();
     }, []);
@@ -94,7 +105,7 @@ export default function Home() {
         // Create a new session if one doesn't exist
         if (!currentSessionId) {
             axios
-                .post("/api/chat-history", { action: "create_session" })
+                .post("/api/chat-history", {action: "create_session"})
                 .then((res) => {
                     setCurrentSessionId(res.data.sessionId);
                     sendMessage(res.data.sessionId);
@@ -114,9 +125,9 @@ export default function Home() {
         // Call API
         axios
             .post("/api/chat", {
-                message: chatInput, 
-                api_url: apiUrl, 
-                api_key: apiKey, 
+                message: chatInput,
+                api_url: apiUrl,
+                api_key: apiKey,
                 model: selectedModel,
                 sessionId: sessionId
             })
@@ -128,7 +139,7 @@ export default function Home() {
             .catch((err) => {
                 console.error("Error sending message:", err);
                 setChatHistory((prev) => [...prev, {
-                    sender: "Bot", 
+                    sender: "Bot",
                     text: `Error: ${err.response?.data?.error || err.message}`
                 }]);
             });
@@ -152,8 +163,8 @@ export default function Home() {
         <Row className="mb-4">
             <Col className="d-flex justify-content-between align-items-center">
                 <h1 className="text-primary">AIMLAPI Chat UI</h1>
-                <Button 
-                    variant="outline-primary" 
+                <Button
+                    variant="outline-primary"
                     onClick={() => router.push('/model-generator')}
                 >
                     3D Model Generator
@@ -228,21 +239,21 @@ export default function Home() {
                         />
                     </Form.Group>
 
-                    <Button 
-                        variant="primary" 
+                    <Button
+                        variant="primary"
                         onClick={() => {
                             // Save API settings to the database
                             axios.post("/api/api-settings", {
                                 api_url: apiUrl,
                                 api_key: apiKey
                             })
-                            .then(res => {
-                                alert("API settings saved successfully!");
-                            })
-                            .catch(err => {
-                                console.error("Error saving API settings:", err);
-                                alert("Error saving API settings: " + (err.response?.data?.error || err.message));
-                            });
+                                .then(res => {
+                                    alert("API settings saved successfully!");
+                                })
+                                .catch(err => {
+                                    console.error("Error saving API settings:", err);
+                                    alert("Error saving API settings: " + (err.response?.data?.error || err.message));
+                                });
                         }}
                     >
                         Save API Settings
