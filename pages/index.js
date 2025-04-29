@@ -2,11 +2,11 @@
 
 import {useState, useEffect} from "react";
 import axios from "axios";
-import {Container, Row, Col, Form, Button, Card, ListGroup, InputGroup} from 'react-bootstrap';
+import {Container, Row, Col, Form, Button, Card, ListGroup, InputGroup, Dropdown} from 'react-bootstrap';
 
 export default function Home() {
     const [config, setConfig] = useState({
-        searxng_enabled: false, searxng_domain: "", deep_thinking: false,
+        searxng_enabled: false, searxng_domain: "", searxng_engine: "google", deep_thinking: false,
     });
     const [chatInput, setChatInput] = useState("");
     const [chatHistory, setChatHistory] = useState([]);
@@ -14,6 +14,33 @@ export default function Home() {
     const [apiKey, setApiKey] = useState("");
     const [selectedModel, setSelectedModel] = useState("gpt-3.5");
     const [models, setModels] = useState([]);
+    const [currentSessionId, setCurrentSessionId] = useState(null);
+    const [searchEngines] = useState(["google", "bing", "duckduckgo", "yahoo", "brave"]);
+
+    // Function to create a new chat session
+    const createNewChatSession = () => {
+        axios
+            .post("/api/chat-history", { action: "create_session" })
+            .then((res) => {
+                setCurrentSessionId(res.data.sessionId);
+                setChatHistory([]);
+            })
+            .catch((err) => console.error("Error creating chat session:", err));
+    };
+
+    // Function to load chat messages for a session
+    const loadChatMessages = (sessionId) => {
+        axios
+            .get(`/api/chat-history?sessionId=${sessionId}`)
+            .then((res) => {
+                const formattedMessages = res.data.messages.map(msg => ({
+                    sender: msg.sender,
+                    text: msg.message
+                }));
+                setChatHistory(formattedMessages);
+            })
+            .catch((err) => console.error("Error loading chat messages:", err));
+    };
 
     // Load initial config, API settings, and models data
     useEffect(() => {
@@ -34,6 +61,9 @@ export default function Home() {
                 }
             })
             .catch((err) => console.error("Error getting API settings:", err));
+
+        // Create a new chat session
+        createNewChatSession();
 
         // refreshModels();
     }, []);
@@ -58,6 +88,22 @@ export default function Home() {
     const handleSendMessage = () => {
         if (!chatInput.trim()) return;
 
+        // Create a new session if one doesn't exist
+        if (!currentSessionId) {
+            axios
+                .post("/api/chat-history", { action: "create_session" })
+                .then((res) => {
+                    setCurrentSessionId(res.data.sessionId);
+                    sendMessage(res.data.sessionId);
+                })
+                .catch((err) => console.error("Error creating chat session:", err));
+        } else {
+            sendMessage(currentSessionId);
+        }
+    };
+
+    // Function to send message to API
+    const sendMessage = (sessionId) => {
         // Update chat history with the user message
         const userMessage = {sender: "User", text: chatInput};
         setChatHistory((prev) => [...prev, userMessage]);
@@ -65,14 +111,24 @@ export default function Home() {
         // Call API
         axios
             .post("/api/chat", {
-                message: chatInput, api_url: apiUrl, api_key: apiKey, model: selectedModel,
+                message: chatInput, 
+                api_url: apiUrl, 
+                api_key: apiKey, 
+                model: selectedModel,
+                sessionId: sessionId
             })
             .then((res) => {
                 const botMessage = {sender: "Bot", text: res.data.response};
                 setChatHistory((prev) => [...prev, botMessage]);
                 setChatInput("");
             })
-            .catch((err) => console.error("Error sending message:", err));
+            .catch((err) => {
+                console.error("Error sending message:", err);
+                setChatHistory((prev) => [...prev, {
+                    sender: "Bot", 
+                    text: `Error: ${err.response?.data?.error || err.message}`
+                }]);
+            });
     };
 
     // Update backend config
@@ -115,10 +171,21 @@ export default function Home() {
                         />
                     </Form.Group>
 
+                    <Form.Group className="mb-3">
+                        <Form.Label>Search Engine</Form.Label>
+                        <Form.Select
+                            value={config.searxng_engine}
+                            onChange={(e) => setConfig({...config, searxng_engine: e.target.value})}
+                        >
+                            {searchEngines.map((engine, idx) => (
+                                <option key={idx} value={engine}>
+                                    {engine.charAt(0).toUpperCase() + engine.slice(1)}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    </Form.Group>
 
-                    <Button variant="primary" onClick={() => {
-                        handleConfigChange(config.searxng_domain)
-                    }}>
+                    <Button variant="primary" onClick={() => handleConfigChange()}>
                         Update Config
                     </Button>
                 </Form>
@@ -202,8 +269,11 @@ export default function Home() {
 
         {/* Chat Section */}
         <Card className="shadow">
-            <Card.Header className="bg-primary text-white">
+            <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center">
                 <h2 className="h5 mb-0">Chat</h2>
+                <Button variant="light" size="sm" onClick={createNewChatSession}>
+                    New Chat
+                </Button>
             </Card.Header>
             <Card.Body>
                 <div

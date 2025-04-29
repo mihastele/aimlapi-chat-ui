@@ -1,12 +1,30 @@
 // pages/api/chat.js
 
 import axios from 'axios';
-import { getConfig, getApiSettings, setApiSettings } from '../../lib/db';
+import { getConfig, getApiSettings, setApiSettings, saveChatMessage } from '../../lib/db';
+
+// Function to perform a search using SearxNG
+async function performSearch(query, domain, engine = 'google') {
+    try {
+        const searchUrl = `${domain}/search`;
+        const params = {
+            q: query,
+            format: 'json',
+            engines: engine
+        };
+
+        const response = await axios.get(searchUrl, { params });
+        return response.data;
+    } catch (error) {
+        console.error('Error performing SearxNG search:', error);
+        return { error: `Search error: ${error.message}` };
+    }
+}
 
 export default async function handler(req, res) {
     if (req.method === "POST") {
         try {
-            const { message, api_url, api_key, model } = req.body;
+            const { message, api_url, api_key, model, sessionId } = req.body;
 
             // Get configuration from the database
             const appConfig = getConfig();
@@ -40,13 +58,57 @@ export default async function handler(req, res) {
                 baseUrl = baseUrl.slice(0, -1);
             }
 
+            // Save user message to chat history if sessionId is provided
+            if (sessionId) {
+                saveChatMessage(sessionId, 'User', message);
+            }
+
+            // Perform search if SearxNG is enabled
+            let searchResults = null;
+            let enhancedMessage = message;
+
+            if (appConfig.searxng_enabled && appConfig.searxng_domain) {
+                try {
+                    searchResults = await performSearch(message, appConfig.searxng_domain, appConfig.searxng_engine);
+
+                    // Combine search results with the message
+                    if (searchResults && searchResults.results && searchResults.results.length > 0) {
+                        const topResults = searchResults.results.slice(0, 3); // Get top 3 results
+                        const searchInfo = topResults.map(result => 
+                            `Title: ${result.title}\nURL: ${result.url}\nContent: ${result.content || 'No content available'}`
+                        ).join('\n\n');
+
+                        enhancedMessage = `I want to answer the following question: "${message}"\n\nHere is some relevant information from a web search:\n${searchInfo}\n\nPlease use this information to provide a comprehensive answer.`;
+                    }
+                } catch (error) {
+                    console.error('Error with SearxNG search:', error);
+                }
+            }
+
             try {
+                // Prepare messages array based on deep thinking setting
+                let messages = [];
+
+                if (appConfig.deep_thinking) {
+                    // For deep thinking, use a system message to encourage more thorough analysis
+                    messages = [
+                        { 
+                            role: 'system', 
+                            content: 'You are a thoughtful assistant that carefully analyzes questions before answering. Take your time to think step by step and consider different perspectives before providing a comprehensive response.' 
+                        },
+                        { role: 'user', content: enhancedMessage }
+                    ];
+                } else {
+                    // Standard message format
+                    messages = [{ role: 'user', content: enhancedMessage }];
+                }
+
                 // Call the external API (OpenAI-style)
                 const response = await axios.post(
                     `${baseUrl}/v1/chat/completions`,
                     {
                         model: model,
-                        messages: [{ role: 'user', content: message }],
+                        messages: messages,
                         temperature: 0.7,
                         max_tokens: 1000
                     },
@@ -66,12 +128,9 @@ export default async function handler(req, res) {
                     responseText = 'No response from API';
                 }
 
-                // Add configuration information if enabled
-                if (appConfig.deep_thinking) {
-                    responseText += " [Deep Thinking Enabled]";
-                }
-                if (appConfig.searxng_enabled) {
-                    responseText += ` [SearxNG Domain: ${appConfig.searxng_domain}]`;
+                // Save bot response to chat history if sessionId is provided
+                if (sessionId) {
+                    saveChatMessage(sessionId, 'Bot', responseText);
                 }
 
                 res.status(200).json({ response: responseText });
@@ -80,11 +139,10 @@ export default async function handler(req, res) {
                 console.error('Error calling external API:', error);
 
                 let responseText = `Echo (API Error): ${message} (using model '${model}')`;
-                if (appConfig.deep_thinking) {
-                    responseText += " [Deep Thinking Enabled]";
-                }
-                if (appConfig.searxng_enabled) {
-                    responseText += ` [SearxNG Domain: ${appConfig.searxng_domain}]`;
+
+                // Save error response to chat history if sessionId is provided
+                if (sessionId) {
+                    saveChatMessage(sessionId, 'Bot', responseText);
                 }
 
                 res.status(200).json({ 

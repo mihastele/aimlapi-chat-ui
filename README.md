@@ -9,7 +9,10 @@ This is a [Next.js](https://nextjs.org) chat application that connects to AI API
 - Store configuration and API settings in a SQLite database
 - Secure storage of API keys using encryption
 - SearxNG integration for enhanced search capabilities
+- Search engine selection for SearxNG (Google, Bing, DuckDuckGo, etc.)
 - Deep thinking mode for more thoughtful responses
+- Chat history storage in the database
+- NEW CHAT functionality to start fresh conversations
 
 ## Getting Started
 
@@ -35,6 +38,13 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 2. Enter your API Key
 3. Click "Save API Settings" to store them securely in the database
 
+### SearxNG Settings
+
+1. Enter your SearxNG domain (e.g., https://your.searxng.instance)
+2. Select your preferred search engine (Google, Bing, DuckDuckGo, etc.)
+3. Enable SearxNG integration using the checkbox in the Chat section
+4. Click "Update Config" to save your settings
+
 ### Models
 
 The application will fetch available models from the API. You can:
@@ -47,7 +57,12 @@ The application will fetch available models from the API. You can:
 Enter your message and click "Send" to chat with the AI. The application will:
 1. Use your selected model
 2. Connect to the API using your stored credentials
-3. Display the AI's response
+3. If SearxNG is enabled, perform a web search and include relevant results
+4. If Deep Thinking is enabled, instruct the AI to provide more thorough analysis
+5. Display the AI's response
+6. Store the conversation in the database for future reference
+
+You can start a new conversation at any time by clicking the "New Chat" button.
 
 ## Technical Details
 
@@ -57,6 +72,7 @@ The application uses SQLite to store:
 - Configuration settings
 - API credentials (encrypted)
 - Available models
+- Chat sessions and message history
 
 ### Security
 
@@ -74,3 +90,14 @@ To learn more about Next.js, take a look at the following resources:
 
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+
+# Setting up SearXNG and API for AIMLAPI
+
+For better documentation check AI ML API Docs https://docs.aimlapi.com/quickstart/setting-up
+
+### Set API URL
+    https://api.aimlapi.com
+
+### Generate an API KEY and use it
+It is pretty straightforward process to get your API KEY on the web site, no need to explain
