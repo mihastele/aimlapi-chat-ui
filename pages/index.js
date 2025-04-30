@@ -10,7 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
-import { FaCog, FaCube, FaCopy } from 'react-icons/fa';
+import { FaCog, FaCube, FaCopy, FaImage } from 'react-icons/fa';
 
 
 export default function Home() {
@@ -29,6 +29,7 @@ export default function Home() {
     const [isStreaming, setIsStreaming] = useState(false);
     const [modelSearchTerm, setModelSearchTerm] = useState("");
     const [showModelDropdown, setShowModelDropdown] = useState(false);
+    const [totalTokens, setTotalTokens] = useState(0);
     const chatEndRef = useRef(null);
 
     // Filter models based on search term
@@ -236,6 +237,28 @@ export default function Home() {
                                 // If we're done, stop streaming
                                 if (data.done) {
                                     setIsStreaming(false);
+
+                                    // Update token information if available
+                                    if (data.tokens) {
+                                        // Update the last message with token information
+                                        setChatHistory((prev) => {
+                                            const newHistory = [...prev];
+                                            const lastBotMessageIndex = newHistory.length - 1;
+                                            if (lastBotMessageIndex >= 0 && newHistory[lastBotMessageIndex].sender === 'Bot') {
+                                                newHistory[lastBotMessageIndex] = {
+                                                    ...newHistory[lastBotMessageIndex],
+                                                    tokens: data.tokens
+                                                };
+                                            }
+                                            return newHistory;
+                                        });
+                                    }
+
+                                    // Update total tokens if available
+                                    if (data.total_tokens) {
+                                        setTotalTokens(data.total_tokens);
+                                    }
+
                                     return;
                                 }
                             } catch (error) {
@@ -300,6 +323,11 @@ export default function Home() {
             {/* Navbar */}
             <Navbar bg="primary" variant="dark" expand="lg" className="px-3">
                 <Navbar.Brand href="#" className="me-auto">AIMLAPI Chat UI</Navbar.Brand>
+                {totalTokens > 0 && (
+                    <div className="text-light me-3">
+                        <small>Total Tokens: <span className="badge bg-light text-dark">{totalTokens.toLocaleString()}</span></small>
+                    </div>
+                )}
                 <Nav>
                     <Dropdown 
                         className="me-2" 
@@ -370,6 +398,14 @@ export default function Home() {
                     </Button>
                     <Button 
                         variant="outline-light" 
+                        size="sm" 
+                        className="me-2"
+                        onClick={() => router.push('/image-generator')}
+                    >
+                        <FaImage className="me-1" /> Image Generator
+                    </Button>
+                    <Button 
+                        variant="outline-light" 
                         size="sm"
                         onClick={() => router.push('/settings')}
                     >
@@ -391,12 +427,19 @@ export default function Home() {
                                 key={idx}
                                 className={`border-0 mb-2 rounded ${msg.sender === 'Bot' ? 'bot-message' : 'user-message'}`}
                             >
-                                <div className="message-header">
-                                    <strong className={msg.sender === 'Bot' ? 'text-primary' : 'text-success'}>
-                                        {msg.sender}
-                                    </strong>
-                                    {msg.sender === 'Bot' && idx === chatHistory.length - 1 && isStreaming && (
-                                        <span className="ms-2 badge bg-info">Streaming...</span>
+                                <div className="message-header d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong className={msg.sender === 'Bot' ? 'text-primary' : 'text-success'}>
+                                            {msg.sender}
+                                        </strong>
+                                        {msg.sender === 'Bot' && idx === chatHistory.length - 1 && isStreaming && (
+                                            <span className="ms-2 badge bg-info">Streaming...</span>
+                                        )}
+                                    </div>
+                                    {msg.tokens > 0 && (
+                                        <span className="badge bg-secondary">
+                                            {msg.tokens} tokens
+                                        </span>
                                     )}
                                 </div>
                                 <div className="message-content">

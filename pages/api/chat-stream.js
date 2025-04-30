@@ -1,7 +1,7 @@
 // pages/api/chat-stream.js
 
 import axios from 'axios';
-import { getConfig, getApiSettings, setApiSettings, saveChatMessage } from '../../lib/db';
+import { getConfig, getApiSettings, setApiSettings, saveChatMessage, getTotalTokenUsage } from '../../lib/db';
 
 // Function to perform a search using SearxNG
 async function performSearch(query, domain, engine = 'google') {
@@ -207,15 +207,51 @@ export default async function handler(req, res) {
                     }
                 });
 
-                response.data.on('end', () => {
-                    // Save the complete response to chat history
-                    if (sessionId && fullResponse) {
-                        saveChatMessage(sessionId, 'Bot', fullResponse);
+                response.data.on('end', async () => {
+                    // Make a separate API call to get the token count
+                    let tokenCount = 0;
+                    try {
+                        // Get token usage for the completed conversation
+                        const tokenResponse = await axios.post(
+                            `${baseUrl}/v1/chat/completions`,
+                            {
+                                model: model,
+                                messages: [
+                                    ...messages,
+                                    { role: 'assistant', content: fullResponse }
+                                ],
+                                temperature: 0.7,
+                                max_tokens: 0  // We don't need any more tokens, just the count
+                            },
+                            {
+                                headers: {
+                                    'Authorization': `Bearer ${apiKey}`,
+                                    'Content-Type': 'application/json'
+                                }
+                            }
+                        );
+
+                        // Extract token count from response
+                        if (tokenResponse.data && tokenResponse.data.usage) {
+                            tokenCount = tokenResponse.data.usage.total_tokens || 0;
+                        }
+                    } catch (error) {
+                        console.error('Error getting token count:', error);
                     }
 
-                    // Send the final message
+                    // Save the complete response to chat history with token count
+                    if (sessionId && fullResponse) {
+                        saveChatMessage(sessionId, 'Bot', fullResponse, tokenCount);
+                    }
+
+                    // Get total token usage
+                    const totalTokens = getTotalTokenUsage();
+
+                    // Send the final message with token information
                     res.write(`data: ${JSON.stringify({ 
-                        done: true 
+                        done: true,
+                        tokens: tokenCount,
+                        total_tokens: totalTokens
                     })}\n\n`);
                     res.end();
                 });

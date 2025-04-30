@@ -22,6 +22,7 @@ export default function Settings() {
     const [success, setSuccess] = useState(null);
     const [modelSearchTerm, setModelSearchTerm] = useState("");
     const [showModelDropdown, setShowModelDropdown] = useState(false);
+    const [totalTokens, setTotalTokens] = useState(0);
 
     // Filter models based on search term
     const filteredModels = models.filter(model => 
@@ -69,6 +70,16 @@ export default function Settings() {
             });
 
         refreshModels();
+
+        // Load token usage
+        axios
+            .get("/api/token-usage")
+            .then((res) => {
+                setTotalTokens(res.data.total_tokens);
+            })
+            .catch((err) => {
+                console.error("Error getting token usage:", err);
+            });
     }, []);
 
     // Function to refresh models
@@ -323,6 +334,40 @@ export default function Settings() {
                             }}
                         >
                             Set as Default Model
+                        </Button>
+                    </div>
+                </Card.Body>
+            </Card>
+
+            {/* Token Usage Section */}
+            <Card className="mb-4 shadow-sm">
+                <Card.Header className="bg-primary text-white">
+                    <h2 className="h5 mb-0">Token Usage</h2>
+                </Card.Header>
+                <Card.Body>
+                    <div className="mb-3">
+                        <h3 className="h6">Total Tokens Used</h3>
+                        <p className="display-4 text-center">{totalTokens.toLocaleString()}</p>
+                        <p className="text-muted text-center">
+                            This is the total number of tokens used across all conversations.
+                        </p>
+                        <Button 
+                            variant="outline-primary" 
+                            onClick={() => {
+                                axios
+                                    .get("/api/token-usage")
+                                    .then((res) => {
+                                        setTotalTokens(res.data.total_tokens);
+                                        setSuccess("Token usage refreshed");
+                                        setTimeout(() => setSuccess(null), 3000);
+                                    })
+                                    .catch((err) => {
+                                        console.error("Error getting token usage:", err);
+                                        setError("Error refreshing token usage");
+                                    });
+                            }}
+                        >
+                            Refresh Token Usage
                         </Button>
                     </div>
                 </Card.Body>
