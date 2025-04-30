@@ -358,7 +358,7 @@ export default function Home() {
                         <small>Total Tokens: <span className="badge bg-light text-dark">{totalTokens.toLocaleString()}</span></small>
                     </div>
                 )}
-                <Nav className="mx-auto">
+                <Nav>
                     {/*<Dropdown className="me-2 my-2">*/}
                     {/*    <Dropdown.Toggle variant="light" size="sm" style={{ width: '150px', textOverflow: 'ellipsis', overflow: 'hidden' }}>*/}
                     {/*        {selectedModelType === 'chat-completion' ? 'Chat Models' : selectedModelType === 'image' ? 'Image Models' : selectedModelType}*/}
