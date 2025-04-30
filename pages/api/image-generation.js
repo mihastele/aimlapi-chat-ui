@@ -27,20 +27,45 @@ export default async function handler(req, res) {
             }
 
             // Prepare the request payload
-            const payload = {
-                prompt,
-                model,
-                image_size,
-                num_inference_steps,
-                guidance_scale,
-                safety_tolerance,
-                output_format,
-                num_images
-            };
+            let payload;
 
-            // Add seed if provided
-            if (seed) {
-                payload.seed = seed;
+            // Use specific schema for flux-pro model
+            if (model === "flux-pro") {
+                payload = {
+                    model: "flux-pro",
+                    image_size: {
+                        width: parseInt(image_size.width),
+                        height: parseInt(image_size.height)
+                    },
+                    num_inference_steps: parseInt(num_inference_steps),
+                    guidance_scale: parseFloat(guidance_scale),
+                    safety_tolerance: safety_tolerance,
+                    output_format: output_format,
+                    prompt: prompt,
+                    num_images: parseInt(num_images)
+                };
+
+                // Add seed if provided
+                if (seed) {
+                    payload.seed = parseInt(seed);
+                }
+            } else {
+                // Use standard payload for other models
+                payload = {
+                    prompt,
+                    model,
+                    image_size,
+                    num_inference_steps,
+                    guidance_scale,
+                    safety_tolerance,
+                    output_format,
+                    num_images
+                };
+
+                // Add seed if provided
+                if (seed) {
+                    payload.seed = seed;
+                }
             }
 
             // Call the external API
@@ -51,38 +76,52 @@ export default async function handler(req, res) {
                     headers: {
                         "Authorization": `Bearer ${apiKey}`,
                         "Content-Type": "application/json",
+                        "Accept": "*/*"
                     }
                 }
             );
 
-            // Extract the image URL from the response
-            const imageUrl = response.data.images[0].url;
-            const width = response.data.images[0].width;
-            const height = response.data.images[0].height;
+            // Extract all image URLs from the response
+            const images = response.data.images;
             const actualSeed = response.data.seed;
 
-            // Save the generated image to the database
-            saveGeneratedImage(prompt, imageUrl, model, width, height);
+            // Save all generated images to the database
+            const savedImages = [];
+            for (const image of images) {
+                const imageUrl = image.url;
+                const width = image.width;
+                const height = image.height;
 
-            // Return the image URL and other details
+                // Save each image to the database
+                saveGeneratedImage(prompt, imageUrl, model, width, height);
+
+                savedImages.push({
+                    image_url: imageUrl,
+                    width,
+                    height
+                });
+            }
+
+            // Return all image URLs and other details
             res.status(200).json({
-                image_url: imageUrl,
-                width,
-                height,
+                images: savedImages,
+                image_url: savedImages[0].image_url, // For backward compatibility
+                width: savedImages[0].width,
+                height: savedImages[0].height,
                 seed: actualSeed,
-                has_nsfw_concepts: response.data.has_nsfw_concepts?.[0] || false
+                has_nsfw_concepts: response.data.has_nsfw_concepts || false
             });
 
         } catch (error) {
             console.error('Error generating image:', error);
-            
+
             // Handle API error response
             if (error.response) {
                 return res.status(error.response.status).json({
                     error: error.response.data.error || 'Error from image generation API'
                 });
             }
-            
+
             res.status(500).json({ error: error.message || 'Internal server error' });
         }
     } else {

@@ -1,7 +1,7 @@
 // pages/image-generator.js
 
 import { useState, useEffect } from "react";
-import { Container, Row, Col, Form, Button, Card, Alert, Spinner, Image } from 'react-bootstrap';
+import {Container, Row, Col, Form, Button, Card, Alert, Spinner, Image, InputGroup} from 'react-bootstrap';
 import axios from "axios";
 import { useRouter } from 'next/router';
 import { FaImage, FaCube, FaCog, FaSync } from 'react-icons/fa';
@@ -12,8 +12,10 @@ export default function ImageGenerator() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [imageUrl, setImageUrl] = useState(null);
+    const [generatedBatch, setGeneratedBatch] = useState([]);
     const [generatedImages, setGeneratedImages] = useState([]);
-    const [model, setModel] = useState("");
+    const [model, setModel] = useState("")
+    const [models, setModels] = useState([]);;
     const [width, setWidth] = useState(1024);
     const [height, setHeight] = useState(1024);
     const [numInferenceSteps, setNumInferenceSteps] = useState(30);
@@ -22,7 +24,7 @@ export default function ImageGenerator() {
     const [outputFormat, setOutputFormat] = useState("jpeg");
     const [numImages, setNumImages] = useState(1);
     const [seed, setSeed] = useState("");
-    const [models, setModels] = useState([]);
+    const [isRefreshingModels, setIsRefreshingModels] = useState(false);
     const [isLoadingModels, setIsLoadingModels] = useState(false);
 
     const router = useRouter();
@@ -87,7 +89,32 @@ export default function ImageGenerator() {
 
         // Load previously generated images
         loadGeneratedImages();
+
+        // Load models
+        refreshModels();
     }, []);
+
+    // Function to refresh models from the database
+    const refreshModels = () => {
+        axios.get("/api/models")
+            .then((res) => setModels(res.data.models))
+            .catch((err) => console.error("Error getting models:", err));
+    };
+
+    // // Function to refresh models from the API
+    // const handleRefreshModels = () => {
+    //     setIsRefreshingModels(true);
+    //     axios.post("/api/models-refresh")
+    //         .then((res) => {
+    //             setModels(res.data.models);
+    //             setIsRefreshingModels(false);
+    //         })
+    //         .catch((err) => {
+    //             console.error("Error refreshing models:", err);
+    //             setIsRefreshingModels(false);
+    //             setError(`Failed to refresh models: ${err.response?.data?.error || err.message}`);
+    //         });
+    // };
 
     // Load previously generated images
     const loadGeneratedImages = async () => {
@@ -114,6 +141,7 @@ export default function ImageGenerator() {
         setIsLoading(true);
         setError(null);
         setImageUrl(null);
+        setGeneratedBatch([]);
 
         try {
             const response = await axios.post("/api/image-generation", {
@@ -131,7 +159,21 @@ export default function ImageGenerator() {
                 seed: seed ? parseInt(seed) : undefined
             });
 
+            // Set the first image URL for backward compatibility
             setImageUrl(response.data.image_url);
+
+            // Set the batch of generated images if available
+            if (response.data.images && response.data.images.length > 0) {
+                setGeneratedBatch(response.data.images);
+            } else {
+                // Fallback for backward compatibility
+                setGeneratedBatch([{
+                    image_url: response.data.image_url,
+                    width: response.data.width,
+                    height: response.data.height
+                }]);
+            }
+
             setIsLoading(false);
 
             // Refresh the list of generated images
@@ -218,9 +260,9 @@ export default function ImageGenerator() {
                                                 <option value="">No image models available</option>
                                             )}
                                         </Form.Select>
-                                        <Button 
-                                            variant="outline-primary" 
-                                            size="sm" 
+                                        <Button
+                                            variant="outline-primary"
+                                            size="sm"
                                             onClick={handleRefreshModels}
                                             disabled={isLoadingModels}
                                             title="Refresh model list"
@@ -394,42 +436,48 @@ export default function ImageGenerator() {
                 </Card.Body>
             </Card>
 
-            {imageUrl && (
+            {generatedBatch.length > 0 && (
                 <Card className="mb-4 shadow-sm">
                     <Card.Header className="bg-success text-white">
-                        <h2 className="h5 mb-0">Generated Image</h2>
+                        <h2 className="h5 mb-0">Generated Images</h2>
                     </Card.Header>
-                    <Card.Body className="text-center">
-                        <Image 
-                            src={imageUrl} 
-                            alt="Generated image" 
-                            fluid 
-                            className="mb-3"
-                            style={{ maxHeight: '500px' }}
-                        />
-                        <div>
-                            <Button 
-                                variant="primary" 
-                                href={imageUrl} 
-                                target="_blank"
-                                className="me-2"
-                            >
-                                Open Full Size
-                            </Button>
-                            <Button 
-                                variant="outline-primary" 
-                                onClick={() => {
-                                    const link = document.createElement('a');
-                                    link.href = imageUrl;
-                                    link.download = `generated-image-${Date.now()}.${outputFormat}`;
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                }}
-                            >
-                                Download
-                            </Button>
-                        </div>
+                    <Card.Body>
+                        <Row>
+                            {generatedBatch.map((image, index) => (
+                                <Col key={index} md={generatedBatch.length > 1 ? 6 : 12} className="mb-3 text-center">
+                                    <Image
+                                        src={image.image_url}
+                                        alt={`Generated image ${index + 1}`}
+                                        fluid
+                                        className="mb-3"
+                                        style={{ maxHeight: '500px' }}
+                                    />
+                                    <div>
+                                        <Button
+                                            variant="primary"
+                                            href={image.image_url}
+                                            target="_blank"
+                                            className="me-2"
+                                        >
+                                            Open Full Size
+                                        </Button>
+                                        <Button
+                                            variant="outline-primary"
+                                            onClick={() => {
+                                                const link = document.createElement('a');
+                                                link.href = image.image_url;
+                                                link.download = `generated-image-${Date.now()}-${index}.${outputFormat}`;
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
+                                            }}
+                                        >
+                                            Download
+                                        </Button>
+                                    </div>
+                                </Col>
+                            ))}
+                        </Row>
                     </Card.Body>
                 </Card>
             )}
