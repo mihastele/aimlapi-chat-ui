@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Container, Row, Col, Form, Button, Card, Alert, Spinner, Image } from 'react-bootstrap';
 import axios from "axios";
 import { useRouter } from 'next/router';
-import { FaImage, FaCube, FaCog } from 'react-icons/fa';
+import { FaImage, FaCube, FaCog, FaSync } from 'react-icons/fa';
 
 export default function ImageGenerator() {
     const [prompt, setPrompt] = useState("");
@@ -13,7 +13,7 @@ export default function ImageGenerator() {
     const [error, setError] = useState(null);
     const [imageUrl, setImageUrl] = useState(null);
     const [generatedImages, setGeneratedImages] = useState([]);
-    const [model, setModel] = useState("flux-pro");
+    const [model, setModel] = useState("");
     const [width, setWidth] = useState(1024);
     const [height, setHeight] = useState(1024);
     const [numInferenceSteps, setNumInferenceSteps] = useState(30);
@@ -22,8 +22,52 @@ export default function ImageGenerator() {
     const [outputFormat, setOutputFormat] = useState("jpeg");
     const [numImages, setNumImages] = useState(1);
     const [seed, setSeed] = useState("");
+    const [models, setModels] = useState([]);
+    const [isLoadingModels, setIsLoadingModels] = useState(false);
 
     const router = useRouter();
+
+    // Function to load models from API
+    const loadModels = () => {
+        setIsLoadingModels(true);
+        axios.get("/api/models")
+            .then((res) => {
+                // Filter models by type 'image'
+                const imageModels = res.data.models.filter(model => model.type === 'image');
+                setModels(imageModels);
+
+                // Set default model if available
+                if (imageModels.length > 0 && !model) {
+                    setModel(imageModels[0].name);
+                }
+                setIsLoadingModels(false);
+            })
+            .catch((err) => {
+                console.error("Error loading models:", err);
+                setIsLoadingModels(false);
+            });
+    };
+
+    // Function to refresh models from API
+    const handleRefreshModels = () => {
+        setIsLoadingModels(true);
+        axios.post("/api/models-refresh")
+            .then((res) => {
+                // Filter models by type 'image'
+                const imageModels = res.data.models.filter(model => model.type === 'image');
+                setModels(imageModels);
+
+                // Set default model if available
+                if (imageModels.length > 0 && !model) {
+                    setModel(imageModels[0].name);
+                }
+                setIsLoadingModels(false);
+            })
+            .catch((err) => {
+                console.error("Error refreshing models:", err);
+                setIsLoadingModels(false);
+            });
+    };
 
     // Load API key from database on component mount
     useEffect(() => {
@@ -37,6 +81,9 @@ export default function ImageGenerator() {
                 console.error("Error getting API settings:", err);
                 setError("Failed to load API settings. Please ensure you have set your API key in the settings page.");
             });
+
+        // Load models
+        loadModels();
 
         // Load previously generated images
         loadGeneratedImages();
@@ -154,14 +201,37 @@ export default function ImageGenerator() {
                             <Col md={6}>
                                 <Form.Group className="mb-3">
                                     <Form.Label>Model</Form.Label>
-                                    <Form.Select
-                                        value={model}
-                                        onChange={(e) => setModel(e.target.value)}
-                                        disabled={isLoading}
-                                    >
-                                        <option value="flux-pro">Flux Pro</option>
-                                        <option value="flux">Flux</option>
-                                    </Form.Select>
+                                    <div className="d-flex">
+                                        <Form.Select
+                                            value={model}
+                                            onChange={(e) => setModel(e.target.value)}
+                                            disabled={isLoading || isLoadingModels}
+                                            className="me-2"
+                                        >
+                                            {models.length > 0 ? (
+                                                models.map((m, idx) => (
+                                                    <option key={idx} value={m.name}>
+                                                        {m.name} ({m.provider})
+                                                    </option>
+                                                ))
+                                            ) : (
+                                                <option value="">No image models available</option>
+                                            )}
+                                        </Form.Select>
+                                        <Button 
+                                            variant="outline-primary" 
+                                            size="sm" 
+                                            onClick={handleRefreshModels}
+                                            disabled={isLoadingModels}
+                                            title="Refresh model list"
+                                        >
+                                            {isLoadingModels ? (
+                                                <Spinner animation="border" size="sm" />
+                                            ) : (
+                                                <FaSync />
+                                            )}
+                                        </Button>
+                                    </div>
                                 </Form.Group>
                             </Col>
                             <Col md={6}>

@@ -37,19 +37,39 @@ export default async function handler(req, res) {
     });
 
     let models = [];
-    
-    // Handle OpenAI-style response
-    if (response.data && response.data.data) {
-      models = response.data.data.map(model => model.id);
+
+    // Handle the new API response format
+    if (response.data && response.data.data && Array.isArray(response.data.data)) {
+      models = response.data.data.map(model => ({
+        name: model.id,
+        provider: model.info?.developer || 'Unknown',
+        type: model.type || 'Unknown'
+      }));
+    } 
+    // Handle OpenAI-style response as fallback
+    else if (response.data && response.data.data) {
+      models = response.data.data.map(model => ({
+        name: model.id,
+        provider: 'openai',
+        type: 'chat-completion'
+      }));
     } 
     // Handle other API formats if needed
     else if (response.data && Array.isArray(response.data)) {
-      models = response.data.map(model => model.id || model.name || model);
+      models = response.data.map(model => ({
+        name: model.id || model.name || model,
+        provider: model.provider || 'Unknown',
+        type: model.type || 'Unknown'
+      }));
     }
     else if (response.data && response.data.models) {
-      models = response.data.models;
+      models = response.data.models.map(model => ({
+        name: typeof model === 'string' ? model : (model.id || model.name),
+        provider: model.provider || 'Unknown',
+        type: model.type || 'Unknown'
+      }));
     }
-    
+
     // If no models were found, return an error
     if (models.length === 0) {
       return res.status(404).json({ 
@@ -65,7 +85,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ models });
   } catch (error) {
     console.error('Error fetching models:', error);
-    
+
     // Return a more helpful error message
     return res.status(500).json({ 
       error: `Failed to fetch models: ${error.message}`,
