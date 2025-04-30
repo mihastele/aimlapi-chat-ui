@@ -30,10 +30,24 @@ export default function Settings() {
 
     // Load initial config, API settings, and models data
     useEffect(() => {
+        // Check localStorage first for the selected model
+        const savedModel = localStorage.getItem('selectedModel');
+        if (savedModel) {
+            setSelectedModel(savedModel);
+        }
+
         // Load config
         axios
             .get("/api/config")
-            .then((res) => setConfig(res.data))
+            .then((res) => {
+                setConfig(res.data);
+                // Set the selected model from config if available
+                if (res.data.selected_model) {
+                    setSelectedModel(res.data.selected_model);
+                    // Update localStorage with the model from config
+                    localStorage.setItem('selectedModel', res.data.selected_model);
+                }
+            })
             .catch((err) => {
                 console.error("Error getting config:", err);
                 setError("Error loading configuration settings");
@@ -278,6 +292,8 @@ export default function Settings() {
                                                 key={idx} 
                                                 onClick={() => {
                                                     setSelectedModel(model);
+                                                    // Save selected model to localStorage
+                                                    localStorage.setItem('selectedModel', model);
                                                     setShowModelDropdown(false);
                                                     setModelSearchTerm("");
                                                 }}
@@ -298,8 +314,11 @@ export default function Settings() {
                         <Button 
                             variant="primary" 
                             onClick={() => {
-                                // Save selected model to config or perform action
-                                setSuccess(`Model "${selectedModel}" selected`);
+                                // Save selected model to config and localStorage
+                                const updatedConfig = {...config, selected_model: selectedModel};
+                                handleConfigChange(updatedConfig);
+                                localStorage.setItem('selectedModel', selectedModel);
+                                setSuccess(`Model "${selectedModel}" set as default`);
                                 setTimeout(() => setSuccess(null), 3000);
                             }}
                         >

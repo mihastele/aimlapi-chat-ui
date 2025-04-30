@@ -66,10 +66,24 @@ export default function Home() {
 
     // Load initial config, API settings, and models data
     useEffect(() => {
+        // Check localStorage first for the selected model
+        const savedModel = localStorage.getItem('selectedModel');
+        if (savedModel) {
+            setSelectedModel(savedModel);
+        }
+
         // Load config
         axios
             .get("/api/config")
-            .then((res) => setConfig(res.data))
+            .then((res) => {
+                setConfig(res.data);
+                // Set the selected model from config if available
+                if (res.data.selected_model) {
+                    setSelectedModel(res.data.selected_model);
+                    // Update localStorage with the model from config
+                    localStorage.setItem('selectedModel', res.data.selected_model);
+                }
+            })
             .catch((err) => console.error("Error getting config:", err));
 
         // Load API settings
@@ -314,6 +328,17 @@ export default function Home() {
                                         key={idx} 
                                         onClick={() => {
                                             setSelectedModel(model);
+                                            // Save selected model to localStorage
+                                            localStorage.setItem('selectedModel', model);
+
+                                            // Save selected model to database config
+                                            axios.post("/api/config", {
+                                                ...config,
+                                                selected_model: model
+                                            })
+                                                .then((res) => setConfig(res.data))
+                                                .catch((err) => console.error("Error updating selected model in config:", err));
+
                                             setShowModelDropdown(false);
                                             setModelSearchTerm("");
                                         }}
