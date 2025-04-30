@@ -27,7 +27,14 @@ export default function Home() {
     const [currentSessionId, setCurrentSessionId] = useState(null);
     const [searchEngines] = useState(["google", "bing", "duckduckgo", "yahoo", "brave"]);
     const [isStreaming, setIsStreaming] = useState(false);
+    const [modelSearchTerm, setModelSearchTerm] = useState("");
+    const [showModelDropdown, setShowModelDropdown] = useState(false);
     const chatEndRef = useRef(null);
+
+    // Filter models based on search term
+    const filteredModels = models.filter(model => 
+        model.toLowerCase().includes(modelSearchTerm.toLowerCase())
+    );
 
     // Function to create a new chat session
     const createNewChatSession = () => {
@@ -148,72 +155,10 @@ export default function Home() {
         // Set streaming state to true
         setIsStreaming(true);
 
-        // Create an EventSource for streaming
-        const eventSource = new EventSource('/api/chat-stream', {
-            withCredentials: true,
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
         // Initialize the response text
         let responseText = '';
 
-        // Handle incoming messages
-        eventSource.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-
-                // If there's a chunk, add it to the response
-                if (data.chunk) {
-                    responseText += data.chunk;
-
-                    // Update the bot message with the current accumulated response
-                    setChatHistory((prev) => {
-                        const newHistory = [...prev];
-                        newHistory[placeholderIndex] = {sender: "Bot", text: responseText};
-                        return newHistory;
-                    });
-                }
-
-                // If there's an error, show it
-                if (data.error) {
-                    responseText += `\n\nError: ${data.error}`;
-                    setChatHistory((prev) => {
-                        const newHistory = [...prev];
-                        newHistory[placeholderIndex] = {sender: "Bot", text: responseText};
-                        return newHistory;
-                    });
-                }
-
-                // If we're done, close the connection
-                if (data.done) {
-                    eventSource.close();
-                    setIsStreaming(false);
-                }
-            } catch (error) {
-                console.error('Error parsing event data:', error);
-            }
-        };
-
-        // Handle errors
-        eventSource.onerror = (error) => {
-            console.error('EventSource error:', error);
-            eventSource.close();
-            setIsStreaming(false);
-
-            // Update the bot message with the error
-            setChatHistory((prev) => {
-                const newHistory = [...prev];
-                newHistory[placeholderIndex] = {
-                    sender: "Bot", 
-                    text: responseText || "Error: Failed to connect to the server."
-                };
-                return newHistory;
-            });
-        };
-
-        // Send the request to initialize the stream
+        // Send the POST request for streaming
         fetch('/api/chat-stream', {
             method: 'POST',
             headers: {
@@ -226,9 +171,88 @@ export default function Home() {
                 model: selectedModel,
                 sessionId: sessionId
             })
-        }).catch(err => {
+        })
+        .then(response => {
+            // Create a reader for the response body stream
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            // Function to process the stream
+            function processStream() {
+                // Read from the stream
+                reader.read().then(({ done, value }) => {
+                    // If the stream is done, set streaming to false
+                    if (done) {
+                        setIsStreaming(false);
+                        return;
+                    }
+
+                    // Decode the chunk
+                    const chunk = decoder.decode(value, { stream: true });
+
+                    // Process each line in the chunk
+                    const lines = chunk.split('\n\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.substring(6));
+
+                                // If there's a chunk, add it to the response
+                                if (data.chunk) {
+                                    responseText += data.chunk;
+
+                                    // Update the bot message with the current accumulated response
+                                    setChatHistory((prev) => {
+                                        const newHistory = [...prev];
+                                        newHistory[placeholderIndex] = {sender: "Bot", text: responseText};
+                                        return newHistory;
+                                    });
+                                }
+
+                                // If there's an error, show it
+                                if (data.error) {
+                                    responseText += `\n\nError: ${data.error}`;
+                                    setChatHistory((prev) => {
+                                        const newHistory = [...prev];
+                                        newHistory[placeholderIndex] = {sender: "Bot", text: responseText};
+                                        return newHistory;
+                                    });
+                                }
+
+                                // If we're done, stop streaming
+                                if (data.done) {
+                                    setIsStreaming(false);
+                                    return;
+                                }
+                            } catch (error) {
+                                console.error('Error parsing event data:', error);
+                            }
+                        }
+                    }
+
+                    // Continue processing the stream
+                    processStream();
+                }).catch(err => {
+                    console.error("Error reading stream:", err);
+                    setIsStreaming(false);
+
+                    // Update the bot message with the error
+                    setChatHistory((prev) => {
+                        const newHistory = [...prev];
+                        newHistory[placeholderIndex] = {
+                            sender: "Bot", 
+                            text: responseText || `Error: ${err.message}`
+                        };
+                        return newHistory;
+                    });
+                });
+            }
+
+            // Start processing the stream
+            processStream();
+        })
+        .catch(err => {
             console.error("Error initiating stream:", err);
-            eventSource.close();
             setIsStreaming(false);
 
             // Update the bot message with the error
@@ -263,19 +287,46 @@ export default function Home() {
             <Navbar bg="primary" variant="dark" expand="lg" className="px-3">
                 <Navbar.Brand href="#" className="me-auto">AIMLAPI Chat UI</Navbar.Brand>
                 <Nav>
-                    <InputGroup className="me-2" style={{ width: '200px' }}>
-                        <Form.Select
-                            value={selectedModel}
-                            onChange={(e) => setSelectedModel(e.target.value)}
-                            size="sm"
-                        >
-                            {models.map((model, idx) => (
-                                <option key={idx} value={model}>
-                                    {model}
-                                </option>
-                            ))}
-                        </Form.Select>
-                    </InputGroup>
+                    <Dropdown 
+                        className="me-2" 
+                        show={showModelDropdown}
+                        onToggle={(isOpen) => setShowModelDropdown(isOpen)}
+                    >
+                        <Dropdown.Toggle variant="light" size="sm" style={{ width: '200px', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                            {selectedModel}
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu style={{ width: '250px', maxHeight: '300px', overflow: 'auto' }}>
+                            <div className="px-2 py-1">
+                                <Form.Control
+                                    size="sm"
+                                    type="text"
+                                    placeholder="Search models..."
+                                    value={modelSearchTerm}
+                                    onChange={(e) => setModelSearchTerm(e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    autoFocus
+                                />
+                            </div>
+                            <Dropdown.Divider />
+                            {filteredModels.length > 0 ? (
+                                filteredModels.map((model, idx) => (
+                                    <Dropdown.Item 
+                                        key={idx} 
+                                        onClick={() => {
+                                            setSelectedModel(model);
+                                            setShowModelDropdown(false);
+                                            setModelSearchTerm("");
+                                        }}
+                                        active={model === selectedModel}
+                                    >
+                                        {model}
+                                    </Dropdown.Item>
+                                ))
+                            ) : (
+                                <Dropdown.Item disabled>No models found</Dropdown.Item>
+                            )}
+                        </Dropdown.Menu>
+                    </Dropdown>
                     <Button 
                         variant="outline-light" 
                         size="sm" 

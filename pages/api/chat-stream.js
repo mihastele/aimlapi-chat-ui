@@ -22,12 +22,15 @@ async function performSearch(query, domain, engine = 'google') {
 }
 
 export default async function handler(req, res) {
+    // Set headers for streaming for POST requests
     if (req.method === "POST") {
-        // Set headers for streaming
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
+    }
 
+    // Handle POST requests for actual data processing
+    if (req.method === "POST") {
         try {
             const { message, api_url, api_key, model, sessionId } = req.body;
 
@@ -86,12 +89,12 @@ export default async function handler(req, res) {
                     // Combine search results with the message
                     if (searchResults && searchResults.results && searchResults.results.length > 0) {
                         const topResults = searchResults.results.slice(0, 3); // Get top 3 results
-                        const searchInfo = topResults.map(result => 
+                        const searchInfo = topResults.map(result =>
                             `Title: ${result.title}\nURL: ${result.url}\nContent: ${result.content || 'No content available'}`
                         ).join('\n\n');
 
                         enhancedMessage = `I want to answer the following question: "${message}"\n\nHere is some relevant information from a web search:\n${searchInfo}\n\nPlease use this information to provide a comprehensive answer.`;
-                        
+
                         // Send a message that search is complete
                         res.write(`data: ${JSON.stringify({ 
                             chunk: "Search complete. Generating response...", 
@@ -114,9 +117,9 @@ export default async function handler(req, res) {
                 if (appConfig.deep_thinking) {
                     // For deep thinking, use a system message to encourage more thorough analysis
                     messages = [
-                        { 
-                            role: 'system', 
-                            content: 'You are a thoughtful assistant that carefully analyzes questions before answering. Take your time to think step by step and consider different perspectives before providing a comprehensive response.' 
+                        {
+                            role: 'system',
+                            content: 'You are a thoughtful assistant that carefully analyzes questions before answering. Take your time to think step by step and consider different perspectives before providing a comprehensive response.'
                         },
                         { role: 'user', content: enhancedMessage }
                     ];
@@ -146,30 +149,59 @@ export default async function handler(req, res) {
 
                 let fullResponse = '';
 
+                // Buffer to accumulate incomplete chunks
+                let buffer = '';
+
                 // Process the streaming response
                 response.data.on('data', (chunk) => {
                     // Parse the chunk data (format depends on the API)
                     const chunkText = chunk.toString();
-                    
-                    // OpenAI format: each chunk starts with "data: " and ends with "\n\n"
-                    const lines = chunkText.split('\n\n');
-                    
+
+                    // Add the new chunk to our buffer
+                    buffer += chunkText;
+
+                    // Process complete messages (each message ends with '\n\n')
+                    // We need to be careful with the splitting to ensure we don't break JSON objects
+                    const lines = buffer.split('\n\n');
+
+                    // Keep the last line in the buffer as it might be incomplete
+                    buffer = lines.pop() || '';
+
+                    // Process each complete line
                     for (const line of lines) {
+                        // Only process data lines and not [DONE] markers
                         if (line.startsWith('data: ') && line !== 'data: [DONE]') {
                             try {
-                                const data = JSON.parse(line.substring(6));
-                                if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
-                                    const content = data.choices[0].delta.content;
-                                    fullResponse += content;
-                                    
-                                    // Send the chunk to the client
-                                    res.write(`data: ${JSON.stringify({ 
-                                        chunk: content, 
-                                        done: false 
-                                    })}\n\n`);
+                                // Extract the JSON part
+                                const jsonStr = line.substring(6);
+
+                                // Skip empty strings
+                                if (!jsonStr.trim()) continue;
+
+                                // Try to parse the JSON
+                                try {
+                                    const data = JSON.parse(jsonStr);
+
+                                    // Extract content if available
+                                    if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+                                        const content = data.choices[0].delta.content;
+                                        fullResponse += content;
+
+                                        // Send the chunk to the client
+                                        res.write(`data: ${JSON.stringify({ 
+                                            chunk: content, 
+                                            done: false 
+                                        })}\n\n`);
+                                    }
+                                } catch (parseError) {
+                                    // If we can't parse this chunk, add it back to the buffer
+                                    // It might be an incomplete JSON that will be completed in the next chunk
+                                    buffer = line + '\n\n' + buffer;
+                                    console.log('Incomplete JSON detected, waiting for more data');
                                 }
                             } catch (e) {
-                                console.error('Error parsing chunk:', e);
+                                console.error('Error processing chunk:', e);
+                                // Continue processing other messages even if one fails
                             }
                         }
                     }
@@ -180,7 +212,7 @@ export default async function handler(req, res) {
                     if (sessionId && fullResponse) {
                         saveChatMessage(sessionId, 'Bot', fullResponse);
                     }
-                    
+
                     // Send the final message
                     res.write(`data: ${JSON.stringify({ 
                         done: true 
@@ -224,6 +256,6 @@ export default async function handler(req, res) {
             res.end();
         }
     } else {
-        res.status(405).json({ error: "Method not allowed" });
+        res.status(405).json({ error: "Method not allowed. Only POST requests are supported." });
     }
 }

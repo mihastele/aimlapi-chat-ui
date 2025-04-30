@@ -1,7 +1,7 @@
 // pages/settings.js
 
 import { useState, useEffect } from "react";
-import { Container, Row, Col, Form, Button, Card, Alert, InputGroup } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Card, Alert, InputGroup, Dropdown } from 'react-bootstrap';
 import axios from "axios";
 import { useRouter } from 'next/router';
 
@@ -20,6 +20,13 @@ export default function Settings() {
     const [searchEngines] = useState(["google", "bing", "duckduckgo", "yahoo", "brave"]);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
+    const [modelSearchTerm, setModelSearchTerm] = useState("");
+    const [showModelDropdown, setShowModelDropdown] = useState(false);
+
+    // Filter models based on search term
+    const filteredModels = models.filter(model => 
+        model.toLowerCase().includes(modelSearchTerm.toLowerCase())
+    );
 
     // Load initial config, API settings, and models data
     useEffect(() => {
@@ -128,19 +135,19 @@ export default function Settings() {
                     </Button>
                 </Col>
             </Row>
-            
+
             {error && (
                 <Alert variant="danger" onClose={() => setError(null)} dismissible>
                     {error}
                 </Alert>
             )}
-            
+
             {success && (
                 <Alert variant="success" onClose={() => setSuccess(null)} dismissible>
                     {success}
                 </Alert>
             )}
-            
+
             {/* Configuration Section */}
             <Card className="mb-4 shadow-sm">
                 <Card.Header className="bg-primary text-white">
@@ -181,7 +188,7 @@ export default function Settings() {
                                 ))}
                             </Form.Select>
                         </Form.Group>
-                        
+
                         <Form.Group className="mb-3">
                             <Form.Check
                                 type="checkbox"
@@ -242,21 +249,63 @@ export default function Settings() {
                     <h2 className="h5 mb-0">Available Models</h2>
                 </Card.Header>
                 <Card.Body>
-                    <InputGroup className="mb-3">
-                        <Form.Select
-                            value={selectedModel}
-                            onChange={(e) => setSelectedModel(e.target.value)}
+                    <div className="mb-3">
+                        <div className="d-flex mb-2">
+                            <Dropdown 
+                                className="flex-grow-1 me-2"
+                                show={showModelDropdown}
+                                onToggle={(isOpen) => setShowModelDropdown(isOpen)}
+                            >
+                                <Dropdown.Toggle variant="outline-primary" style={{ width: '100%', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                    {selectedModel}
+                                </Dropdown.Toggle>
+                                <Dropdown.Menu style={{ width: '100%', maxHeight: '300px', overflow: 'auto' }}>
+                                    <div className="px-2 py-1">
+                                        <Form.Control
+                                            size="sm"
+                                            type="text"
+                                            placeholder="Search models..."
+                                            value={modelSearchTerm}
+                                            onChange={(e) => setModelSearchTerm(e.target.value)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <Dropdown.Divider />
+                                    {filteredModels.length > 0 ? (
+                                        filteredModels.map((model, idx) => (
+                                            <Dropdown.Item 
+                                                key={idx} 
+                                                onClick={() => {
+                                                    setSelectedModel(model);
+                                                    setShowModelDropdown(false);
+                                                    setModelSearchTerm("");
+                                                }}
+                                                active={model === selectedModel}
+                                            >
+                                                {model}
+                                            </Dropdown.Item>
+                                        ))
+                                    ) : (
+                                        <Dropdown.Item disabled>No models found</Dropdown.Item>
+                                    )}
+                                </Dropdown.Menu>
+                            </Dropdown>
+                            <Button variant="outline-secondary" onClick={handleRefreshModels}>
+                                Refresh
+                            </Button>
+                        </div>
+                        <Button 
+                            variant="primary" 
+                            onClick={() => {
+                                // Save selected model to config or perform action
+                                setSuccess(`Model "${selectedModel}" selected`);
+                                setTimeout(() => setSuccess(null), 3000);
+                            }}
                         >
-                            {models.map((model, idx) => (
-                                <option key={idx} value={model}>
-                                    {model}
-                                </option>
-                            ))}
-                        </Form.Select>
-                        <Button variant="outline-secondary" onClick={handleRefreshModels}>
-                            Refresh
+                            Set as Default Model
                         </Button>
-                    </InputGroup>
+                    </div>
                 </Card.Body>
             </Card>
         </Container>
