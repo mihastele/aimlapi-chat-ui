@@ -383,11 +383,12 @@ export default function Home() {
                     <Button 
                         variant="outline-light" 
                         size="sm" 
-                        className="me-2"
+                        className="me-5"
                         onClick={createNewChatSession}
                     >
                         New Chat
                     </Button>
+                    <div className="me-5"></div>
                     <Button 
                         variant="outline-light" 
                         size="sm" 
