@@ -26,7 +26,7 @@ export default function Settings() {
 
     // Filter models based on search term
     const filteredModels = models.filter(model => 
-        model.toLowerCase().includes(modelSearchTerm.toLowerCase())
+        model.name && model.name.toLowerCase().includes(modelSearchTerm.toLowerCase())
     );
 
     // Load initial config, API settings, and models data
@@ -302,15 +302,15 @@ export default function Settings() {
                                             <Dropdown.Item 
                                                 key={idx} 
                                                 onClick={() => {
-                                                    setSelectedModel(model);
+                                                    setSelectedModel(model.name);
                                                     // Save selected model to localStorage
-                                                    localStorage.setItem('selectedModel', model);
+                                                    localStorage.setItem('selectedModel', model.name);
                                                     setShowModelDropdown(false);
                                                     setModelSearchTerm("");
                                                 }}
-                                                active={model === selectedModel}
+                                                active={model.name === selectedModel}
                                             >
-                                                {model}
+                                                {model.name} <small className="text-muted">({model.provider})</small>
                                             </Dropdown.Item>
                                         ))
                                     ) : (
