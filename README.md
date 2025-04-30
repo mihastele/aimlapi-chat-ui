@@ -41,6 +41,12 @@ First, install the dependencies:
 npm install
 ```
 
+Set environment variable .env in root
+
+``` .env
+ENCRYPTION_KEY='YOUR SECRET ENCRYPTION KEY'
+```
+
 Then, run the development server:
 
 ```bash
