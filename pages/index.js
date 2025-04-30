@@ -35,7 +35,7 @@ export default function Home() {
 
     // Filter models based on search term and model type
     const filteredModels = models.filter(model => 
-        model.name.toLowerCase().includes(modelSearchTerm.toLowerCase()) && 
+        model.name.toLowerCase().includes(modelSearchTerm.toLowerCase()) &&
         model.type === selectedModelType
     );
 
@@ -378,7 +378,7 @@ export default function Home() {
                     {/*        </Dropdown.Item>*/}
                     {/*    </Dropdown.Menu>*/}
                     {/*</Dropdown>*/}
-                    <Dropdown 
+                    <Dropdown
                         className="me-2 my-2"
                         show={showModelDropdown}
                         onToggle={(isOpen) => setShowModelDropdown(isOpen)}
@@ -430,8 +430,8 @@ export default function Home() {
                         </Dropdown.Menu>
                     </Dropdown>
                     <Button 
-                        variant="light" 
-                        size="sm" 
+                        variant="light"
+                        size="sm"
                         className="me-2 my-2"
                         onClick={handleRefreshModels}
                         title="Refresh model list"
@@ -439,14 +439,15 @@ export default function Home() {
                         <i className="fas fa-sync-alt"></i> Refresh Models
                     </Button>
                     <Button
-                        variant="outline-light" 
+                        variant="outline-light"
                         size="sm" 
-                        className="me-2 my-2"
+                        className="me-5 my-2"
                         onClick={createNewChatSession}
                     >
                         New Chat
                     </Button>
-                    <Button 
+                    <div className="me-5"></div>
+                    <Button
                         variant="outline-light" 
                         size="sm" 
                         className="me-2 my-2"
