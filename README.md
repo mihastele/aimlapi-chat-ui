@@ -9,10 +9,13 @@ This is a [Next.js](https://nextjs.org) chat application that connects to AI API
 - Store configuration and API settings in a SQLite database
 - Secure storage of API keys using encryption
 - SearxNG integration for enhanced search capabilities
-- Search engine selection for SearxNG (Google, Bing, DuckDuckGo, etc.)
-- Deep thinking mode for more thoughtful responses
 - Chat history storage in the database
 - NEW CHAT functionality to start fresh conversations
+
+## TODO Features
+- Search engine selection for SearxNG (Google, Bing, DuckDuckGo, etc.)
+- Deep thinking mode for more thoughtful responses
+- Add image and docs input
 
 ## Showcase
 
