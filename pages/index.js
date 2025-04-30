@@ -30,13 +30,11 @@ export default function Home() {
     const [modelSearchTerm, setModelSearchTerm] = useState("");
     const [showModelDropdown, setShowModelDropdown] = useState(false);
     const [totalTokens, setTotalTokens] = useState(0);
-    const [selectedModelType, setSelectedModelType] = useState("chat-completion");
     const chatEndRef = useRef(null);
 
-    // Filter models based on search term and model type
+    // Filter models based on search term
     const filteredModels = models.filter(model => 
-        model.name.toLowerCase().includes(modelSearchTerm.toLowerCase()) && 
-        model.type === selectedModelType
+        model.toLowerCase().includes(modelSearchTerm.toLowerCase())
     );
 
     // Function to create a new chat session
@@ -114,25 +112,11 @@ export default function Home() {
         refreshModels();
     }, []);
 
-    // Function to refresh models
+    // // Function to refresh models
     const refreshModels = () => {
         axios
             .get("/api/models")
-            .then((res) => {
-                setModels(res.data.models);
-                // If there are models and the selected model is not in the filtered list,
-                // select the first model of the selected type
-                if (res.data.models.length > 0) {
-                    const modelsOfSelectedType = res.data.models.filter(model => model.type === selectedModelType);
-                    if (modelsOfSelectedType.length > 0) {
-                        const modelExists = modelsOfSelectedType.some(model => model.name === selectedModel);
-                        if (!modelExists) {
-                            setSelectedModel(modelsOfSelectedType[0].name);
-                            localStorage.setItem('selectedModel', modelsOfSelectedType[0].name);
-                        }
-                    }
-                }
-            })
+            .then((res) => setModels(res.data.models))
             .catch((err) => console.error("Error getting models:", err));
     };
 
@@ -140,21 +124,7 @@ export default function Home() {
     const handleRefreshModels = () => {
         axios
             .post("/api/models-refresh")
-            .then((res) => {
-                setModels(res.data.models);
-                // If there are models and the selected model is not in the filtered list,
-                // select the first model of the selected type
-                if (res.data.models.length > 0) {
-                    const modelsOfSelectedType = res.data.models.filter(model => model.type === selectedModelType);
-                    if (modelsOfSelectedType.length > 0) {
-                        const modelExists = modelsOfSelectedType.some(model => model.name === selectedModel);
-                        if (!modelExists) {
-                            setSelectedModel(modelsOfSelectedType[0].name);
-                            localStorage.setItem('selectedModel', modelsOfSelectedType[0].name);
-                        }
-                    }
-                }
-            })
+            .then((res) => setModels(res.data.models))
             .catch((err) => console.error("Error refreshing models:", err));
     };
 
@@ -359,27 +329,8 @@ export default function Home() {
                     </div>
                 )}
                 <Nav>
-                    {/*<Dropdown className="me-2 my-2">*/}
-                    {/*    <Dropdown.Toggle variant="light" size="sm" style={{ width: '150px', textOverflow: 'ellipsis', overflow: 'hidden' }}>*/}
-                    {/*        {selectedModelType === 'chat-completion' ? 'Chat Models' : selectedModelType === 'image' ? 'Image Models' : selectedModelType}*/}
-                    {/*    </Dropdown.Toggle>*/}
-                    {/*    <Dropdown.Menu>*/}
-                    {/*        <Dropdown.Item */}
-                    {/*            onClick={() => setSelectedModelType('chat-completion')}*/}
-                    {/*            active={selectedModelType === 'chat-completion'}*/}
-                    {/*        >*/}
-                    {/*            Chat Models*/}
-                    {/*        </Dropdown.Item>*/}
-                    {/*        <Dropdown.Item */}
-                    {/*            onClick={() => setSelectedModelType('image')}*/}
-                    {/*            active={selectedModelType === 'image'}*/}
-                    {/*        >*/}
-                    {/*            Image Models*/}
-                    {/*        </Dropdown.Item>*/}
-                    {/*    </Dropdown.Menu>*/}
-                    {/*</Dropdown>*/}
                     <Dropdown 
-                        className="me-2 my-2"
+                        className="me-2" 
                         show={showModelDropdown}
                         onToggle={(isOpen) => setShowModelDropdown(isOpen)}
                     >
@@ -404,14 +355,14 @@ export default function Home() {
                                     <Dropdown.Item 
                                         key={idx} 
                                         onClick={() => {
-                                            setSelectedModel(model.name);
+                                            setSelectedModel(model);
                                             // Save selected model to localStorage
-                                            localStorage.setItem('selectedModel', model.name);
+                                            localStorage.setItem('selectedModel', model);
 
                                             // Save selected model to database config
                                             axios.post("/api/config", {
                                                 ...config,
-                                                selected_model: model.name
+                                                selected_model: model
                                             })
                                                 .then((res) => setConfig(res.data))
                                                 .catch((err) => console.error("Error updating selected model in config:", err));
@@ -419,9 +370,9 @@ export default function Home() {
                                             setShowModelDropdown(false);
                                             setModelSearchTerm("");
                                         }}
-                                        active={model.name === selectedModel}
+                                        active={model === selectedModel}
                                     >
-                                        {model.name} <small className="text-muted">({model.provider})</small>
+                                        {model}
                                     </Dropdown.Item>
                                 ))
                             ) : (
@@ -430,18 +381,9 @@ export default function Home() {
                         </Dropdown.Menu>
                     </Dropdown>
                     <Button 
-                        variant="light" 
-                        size="sm" 
-                        className="me-2 my-2"
-                        onClick={handleRefreshModels}
-                        title="Refresh model list"
-                    >
-                        <i className="fas fa-sync-alt"></i> Refresh Models
-                    </Button>
-                    <Button
                         variant="outline-light" 
                         size="sm" 
-                        className="me-2 my-2"
+                        className="me-2"
                         onClick={createNewChatSession}
                     >
                         New Chat
@@ -449,7 +391,7 @@ export default function Home() {
                     <Button 
                         variant="outline-light" 
                         size="sm" 
-                        className="me-2 my-2"
+                        className="me-2"
                         onClick={() => router.push('/model-generator')}
                     >
                         <FaCube className="me-1" /> 3D Model
@@ -457,13 +399,12 @@ export default function Home() {
                     <Button 
                         variant="outline-light" 
                         size="sm" 
-                        className="me-2 my-2"
+                        className="me-2"
                         onClick={() => router.push('/image-generator')}
                     >
                         <FaImage className="me-1" /> Image Generator
                     </Button>
-                    <Button
-                        className="me-2 my-2"
+                    <Button 
                         variant="outline-light" 
                         size="sm"
                         onClick={() => router.push('/settings')}

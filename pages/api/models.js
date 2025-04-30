@@ -9,11 +9,7 @@ export default function handler(req, res) {
 
         // If no models in database, return default models
         if (models.length === 0) {
-            const defaultModels = [
-                { name: "gpt-3.5", provider: "openai", type: "chat-completion" },
-                { name: "gpt-4", provider: "openai", type: "chat-completion" },
-                { name: "custom-model", provider: "custom", type: "chat-completion" }
-            ];
+            const defaultModels = ["gpt-3.5", "gpt-4", "custom-model"];
             res.status(200).json({ models: defaultModels });
         } else {
             res.status(200).json({ models });
