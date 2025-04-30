@@ -34,7 +34,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ### API Settings
 
-1. Enter your API URL (e.g., https://api.openai.com)
+1. Enter your API URL (e.g., https://api.aimlapi.com (supported fully), https://api.openai.com)
 2. Enter your API Key
 3. Click "Save API Settings" to store them securely in the database
 
@@ -93,6 +93,14 @@ To learn more about Next.js, take a look at the following resources:
 
 
 # Setting up SearXNG and API for AIMLAPI
+
+## IMPORTANT
+Set environment variable .env
+
+    ENCRYPTION_KEY='YOUR SECRET ENCRYPTION KEY'
+
+
+This will make sure your api key stored will be encrypted which is a requirement for this app to work
 
 ## Searxng
 The easiest way to set up https://docs.searxng.org/admin/installation-docker.html
