@@ -22,13 +22,13 @@ Here are some screenshots of the application in action:
 *Main chat interface with AI responses*
 
 ![Configuration Settings](github-images/b.png)
-*Configuration and API settings panel*
+*Image generation*
 
 ![Model Selection](github-images/c.jpg)
-*Model selection and parameters*
+*Past generated images*
 
 ![Search Integration](github-images/d.png)
-*SearxNG search integration in action*
+*3d Model section*
 
 ## Getting Started
 
