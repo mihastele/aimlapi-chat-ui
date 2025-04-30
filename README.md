@@ -1,4 +1,4 @@
-# Next.js Chat Application
+# AI/ML API WEB UI
 
 This is a [Next.js](https://nextjs.org) chat application that connects to AI APIs like OpenAI.
 
