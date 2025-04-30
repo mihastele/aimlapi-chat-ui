@@ -359,27 +359,27 @@ export default function Home() {
                     </div>
                 )}
                 <Nav className="mx-auto">
-                    <Dropdown className="me-2">
-                        <Dropdown.Toggle variant="light" size="sm" style={{ width: '150px', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                            {selectedModelType === 'chat-completion' ? 'Chat Models' : selectedModelType === 'image' ? 'Image Models' : selectedModelType}
-                        </Dropdown.Toggle>
-                        <Dropdown.Menu>
-                            <Dropdown.Item 
-                                onClick={() => setSelectedModelType('chat-completion')}
-                                active={selectedModelType === 'chat-completion'}
-                            >
-                                Chat Models
-                            </Dropdown.Item>
-                            <Dropdown.Item 
-                                onClick={() => setSelectedModelType('image')}
-                                active={selectedModelType === 'image'}
-                            >
-                                Image Models
-                            </Dropdown.Item>
-                        </Dropdown.Menu>
-                    </Dropdown>
+                    {/*<Dropdown className="me-2 my-2">*/}
+                    {/*    <Dropdown.Toggle variant="light" size="sm" style={{ width: '150px', textOverflow: 'ellipsis', overflow: 'hidden' }}>*/}
+                    {/*        {selectedModelType === 'chat-completion' ? 'Chat Models' : selectedModelType === 'image' ? 'Image Models' : selectedModelType}*/}
+                    {/*    </Dropdown.Toggle>*/}
+                    {/*    <Dropdown.Menu>*/}
+                    {/*        <Dropdown.Item */}
+                    {/*            onClick={() => setSelectedModelType('chat-completion')}*/}
+                    {/*            active={selectedModelType === 'chat-completion'}*/}
+                    {/*        >*/}
+                    {/*            Chat Models*/}
+                    {/*        </Dropdown.Item>*/}
+                    {/*        <Dropdown.Item */}
+                    {/*            onClick={() => setSelectedModelType('image')}*/}
+                    {/*            active={selectedModelType === 'image'}*/}
+                    {/*        >*/}
+                    {/*            Image Models*/}
+                    {/*        </Dropdown.Item>*/}
+                    {/*    </Dropdown.Menu>*/}
+                    {/*</Dropdown>*/}
                     <Dropdown 
-                        className="me-2" 
+                        className="me-2 my-2"
                         show={showModelDropdown}
                         onToggle={(isOpen) => setShowModelDropdown(isOpen)}
                     >
@@ -432,16 +432,16 @@ export default function Home() {
                     <Button 
                         variant="light" 
                         size="sm" 
-                        className="me-2"
+                        className="me-2 my-2"
                         onClick={handleRefreshModels}
                         title="Refresh model list"
                     >
                         <i className="fas fa-sync-alt"></i> Refresh Models
                     </Button>
-                    <Button 
+                    <Button
                         variant="outline-light" 
                         size="sm" 
-                        className="me-2"
+                        className="me-2 my-2"
                         onClick={createNewChatSession}
                     >
                         New Chat
@@ -449,7 +449,7 @@ export default function Home() {
                     <Button 
                         variant="outline-light" 
                         size="sm" 
-                        className="me-2"
+                        className="me-2 my-2"
                         onClick={() => router.push('/model-generator')}
                     >
                         <FaCube className="me-1" /> 3D Model
@@ -457,12 +457,13 @@ export default function Home() {
                     <Button 
                         variant="outline-light" 
                         size="sm" 
-                        className="me-2"
+                        className="me-2 my-2"
                         onClick={() => router.push('/image-generator')}
                     >
                         <FaImage className="me-1" /> Image Generator
                     </Button>
-                    <Button 
+                    <Button
+                        className="me-2 my-2"
                         variant="outline-light" 
                         size="sm"
                         onClick={() => router.push('/settings')}
