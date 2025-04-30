@@ -332,11 +332,22 @@ export default function ImageGenerator() {
                                 </Form.Group>
                             </Col>
                             <Col md={6}>
-                                <Form.Group className="mb-3">
+                                {/*<Form.Group className="mb-3">*/}
+                                {/*    <Form.Label>Number of Images</Form.Label>*/}
+                                {/*    <Form.Control*/}
+                                {/*        type="number"*/}
+                                {/*        value={numImages}*/}
+                                {/*        onChange={(e) => setNumImages(e.target.value)}*/}
+                                {/*        min="1"*/}
+                                {/*        max="4"*/}
+                                {/*        disabled={isLoading}*/}
+                                {/*    />*/}
+                                {/*</Form.Group>*/}
+                                <Form.Group className="d-none">
                                     <Form.Label>Number of Images</Form.Label>
                                     <Form.Control
                                         type="number"
-                                        value={numImages}
+                                        value="1"
                                         onChange={(e) => setNumImages(e.target.value)}
                                         min="1"
                                         max="4"
