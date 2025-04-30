@@ -1,8 +1,8 @@
 // pages/index.js
 
-import {useState, useEffect} from "react";
+import {useState, useEffect, useRef} from "react";
 import axios from "axios";
-import {Container, Row, Col, Form, Button, Card, ListGroup, InputGroup, Dropdown} from 'react-bootstrap';
+import {Container, Row, Col, Form, Button, Card, ListGroup, InputGroup, Dropdown, Navbar, Nav, OverlayTrigger, Tooltip} from 'react-bootstrap';
 import {useRouter} from 'next/router';
 import Cookies from 'js-cookie';
 // At the top of your file, add these imports
@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { FaCog, FaCube, FaCopy } from 'react-icons/fa';
 
 
 export default function Home() {
@@ -25,6 +26,8 @@ export default function Home() {
     const [models, setModels] = useState([]);
     const [currentSessionId, setCurrentSessionId] = useState(null);
     const [searchEngines] = useState(["google", "bing", "duckduckgo", "yahoo", "brave"]);
+    const [isStreaming, setIsStreaming] = useState(false);
+    const chatEndRef = useRef(null);
 
     // Function to create a new chat session
     const createNewChatSession = () => {
@@ -103,6 +106,13 @@ export default function Home() {
             .catch((err) => console.error("Error refreshing models:", err));
     };
 
+    // Auto-scroll to bottom of chat when new messages arrive
+    useEffect(() => {
+        if (chatEndRef.current) {
+            chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [chatHistory]);
+
     // Handler to send a chat message
     const handleSendMessage = () => {
         if (!chatInput.trim()) return;
@@ -121,33 +131,116 @@ export default function Home() {
         }
     };
 
-    // Function to send message to API
+    // Function to send message to API with streaming
     const sendMessage = (sessionId) => {
         // Update chat history with the user message
         const userMessage = {sender: "User", text: chatInput};
         setChatHistory((prev) => [...prev, userMessage]);
 
-        // Call API
-        axios
-            .post("/api/chat", {
-                message: chatInput,
+        // Store the message to clear the input field
+        const currentMessage = chatInput;
+        setChatInput("");
+
+        // Add a placeholder for the bot response
+        const placeholderIndex = chatHistory.length + 1; // +1 for the user message we just added
+        setChatHistory((prev) => [...prev, {sender: "Bot", text: ""}]);
+
+        // Set streaming state to true
+        setIsStreaming(true);
+
+        // Create an EventSource for streaming
+        const eventSource = new EventSource('/api/chat-stream', {
+            withCredentials: true,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // Initialize the response text
+        let responseText = '';
+
+        // Handle incoming messages
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+
+                // If there's a chunk, add it to the response
+                if (data.chunk) {
+                    responseText += data.chunk;
+
+                    // Update the bot message with the current accumulated response
+                    setChatHistory((prev) => {
+                        const newHistory = [...prev];
+                        newHistory[placeholderIndex] = {sender: "Bot", text: responseText};
+                        return newHistory;
+                    });
+                }
+
+                // If there's an error, show it
+                if (data.error) {
+                    responseText += `\n\nError: ${data.error}`;
+                    setChatHistory((prev) => {
+                        const newHistory = [...prev];
+                        newHistory[placeholderIndex] = {sender: "Bot", text: responseText};
+                        return newHistory;
+                    });
+                }
+
+                // If we're done, close the connection
+                if (data.done) {
+                    eventSource.close();
+                    setIsStreaming(false);
+                }
+            } catch (error) {
+                console.error('Error parsing event data:', error);
+            }
+        };
+
+        // Handle errors
+        eventSource.onerror = (error) => {
+            console.error('EventSource error:', error);
+            eventSource.close();
+            setIsStreaming(false);
+
+            // Update the bot message with the error
+            setChatHistory((prev) => {
+                const newHistory = [...prev];
+                newHistory[placeholderIndex] = {
+                    sender: "Bot", 
+                    text: responseText || "Error: Failed to connect to the server."
+                };
+                return newHistory;
+            });
+        };
+
+        // Send the request to initialize the stream
+        fetch('/api/chat-stream', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: currentMessage,
                 api_url: apiUrl,
                 api_key: apiKey,
                 model: selectedModel,
                 sessionId: sessionId
             })
-            .then((res) => {
-                const botMessage = {sender: "Bot", text: res.data.response};
-                setChatHistory((prev) => [...prev, botMessage]);
-                setChatInput("");
-            })
-            .catch((err) => {
-                console.error("Error sending message:", err);
-                setChatHistory((prev) => [...prev, {
-                    sender: "Bot",
-                    text: `Error: ${err.response?.data?.error || err.message}`
-                }]);
+        }).catch(err => {
+            console.error("Error initiating stream:", err);
+            eventSource.close();
+            setIsStreaming(false);
+
+            // Update the bot message with the error
+            setChatHistory((prev) => {
+                const newHistory = [...prev];
+                newHistory[placeholderIndex] = {
+                    sender: "Bot", 
+                    text: `Error: ${err.message}`
+                };
+                return newHistory;
             });
+        });
     };
 
     // Update backend config
@@ -164,148 +257,57 @@ export default function Home() {
             .catch((err) => console.error("Error updating config:", err));
     };
 
-    return (<Container className="py-4">
-        <Row className="mb-4">
-            <Col className="d-flex justify-content-between align-items-center">
-                <h1 className="text-primary">AIMLAPI Chat UI</h1>
-                <Button
-                    variant="outline-primary"
-                    onClick={() => router.push('/model-generator')}
-                >
-                    3D Model Generator
-                </Button>
-            </Col>
-        </Row>
-
-        {/* Configuration Section */}
-        <Card className="mb-4 shadow-sm">
-            <Card.Header className="bg-primary text-white">
-                <h2 className="h5 mb-0">Configuration</h2>
-            </Card.Header>
-            <Card.Body>
-                <Form>
-
-
-                    <Form.Group className="mb-3">
-                        <Form.Label>SearxNG Domain</Form.Label>
-                        <Form.Control
-                            type="text"
-                            value={config.searxng_domain}
-                            onChange={(e) => setConfig({...config, searxng_domain: e.target.value})}
-                            placeholder="e.g. https://your.searxng.instance"
-                        />
-                    </Form.Group>
-
-                    <Form.Group className="mb-3">
-                        <Form.Label>Search Engine</Form.Label>
+    return (
+        <div className="d-flex flex-column vh-100">
+            {/* Navbar */}
+            <Navbar bg="primary" variant="dark" expand="lg" className="px-3">
+                <Navbar.Brand href="#" className="me-auto">AIMLAPI Chat UI</Navbar.Brand>
+                <Nav>
+                    <InputGroup className="me-2" style={{ width: '200px' }}>
                         <Form.Select
-                            value={config.searxng_engine}
-                            onChange={(e) => setConfig({...config, searxng_engine: e.target.value})}
+                            value={selectedModel}
+                            onChange={(e) => setSelectedModel(e.target.value)}
+                            size="sm"
                         >
-                            {searchEngines.map((engine, idx) => (
-                                <option key={idx} value={engine}>
-                                    {engine.charAt(0).toUpperCase() + engine.slice(1)}
+                            {models.map((model, idx) => (
+                                <option key={idx} value={model}>
+                                    {model}
                                 </option>
                             ))}
                         </Form.Select>
-                    </Form.Group>
-
-                    <Button variant="primary" onClick={() => handleConfigChange()}>
-                        Update Config
-                    </Button>
-                </Form>
-            </Card.Body>
-        </Card>
-
-        {/* API Settings Section */}
-        <Card className="mb-4 shadow-sm">
-            <Card.Header className="bg-primary text-white">
-                <h2 className="h5 mb-0">API Settings</h2>
-            </Card.Header>
-            <Card.Body>
-                <Form>
-                    <Form.Group className="mb-3">
-                        <Form.Label>API URL</Form.Label>
-                        <Form.Control
-                            type="text"
-                            value={apiUrl}
-                            onChange={(e) => setApiUrl(e.target.value)}
-                            placeholder="e.g. https://api.openai.com"
-                        />
-                    </Form.Group>
-
-                    <Form.Group className="mb-3">
-                        <Form.Label>API Key</Form.Label>
-                        <Form.Control
-                            type="password"
-                            value={apiKey}
-                            onChange={(e) => setApiKey(e.target.value)}
-                            placeholder="Your API Key"
-                        />
-                    </Form.Group>
-
-                    <Button
-                        variant="primary"
-                        onClick={() => {
-                            // Save API settings to the database
-                            axios.post("/api/api-settings", {
-                                api_url: apiUrl,
-                                api_key: apiKey
-                            })
-                                .then(res => {
-                                    alert("API settings saved successfully!");
-                                })
-                                .catch(err => {
-                                    console.error("Error saving API settings:", err);
-                                    alert("Error saving API settings: " + (err.response?.data?.error || err.message));
-                                });
-                        }}
+                    </InputGroup>
+                    <Button 
+                        variant="outline-light" 
+                        size="sm" 
+                        className="me-2"
+                        onClick={createNewChatSession}
                     >
-                        Save API Settings
+                        New Chat
                     </Button>
-                </Form>
-            </Card.Body>
-        </Card>
-
-        {/* Models Section */}
-        <Card className="mb-4 shadow-sm">
-            <Card.Header className="bg-primary text-white">
-                <h2 className="h5 mb-0">Available Models</h2>
-            </Card.Header>
-            <Card.Body>
-                <InputGroup className="mb-3">
-                    <Form.Select
-                        value={selectedModel}
-                        onChange={(e) => setSelectedModel(e.target.value)}
+                    <Button 
+                        variant="outline-light" 
+                        size="sm" 
+                        className="me-2"
+                        onClick={() => router.push('/model-generator')}
                     >
-                        {models.map((model, idx) => (<option key={idx} value={model}>
-                            {model}
-                        </option>))}
-                    </Form.Select>
-                    {/*<Button variant="outline-primary" onClick={refreshModels}>*/}
-                    {/*    Refresh (GET)*/}
-                    {/*</Button>*/}
-                    <Button variant="outline-secondary" onClick={handleRefreshModels}>
-                        Refresh
+                        <FaCube className="me-1" /> 3D Model
                     </Button>
-                </InputGroup>
-            </Card.Body>
-        </Card>
+                    <Button 
+                        variant="outline-light" 
+                        size="sm"
+                        onClick={() => router.push('/settings')}
+                    >
+                        <FaCog className="me-1" /> Settings
+                    </Button>
+                </Nav>
+            </Navbar>
 
-        {/* Chat Section */}
-        <Card className="shadow">
-            <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center">
-                <h2 className="h5 mb-0">Chat</h2>
-                <Button variant="light" size="sm" onClick={createNewChatSession}>
-                    New Chat
-                </Button>
-            </Card.Header>
-            <Card.Body>
+            {/* Chat Container */}
+            <div className="flex-grow-1 d-flex flex-column p-3">
+                {/* Chat Messages */}
                 <div
-                    className="bg-light p-3 mb-3 rounded"
-                    style={{
-                        height: '300px', overflowY: 'auto'
-                    }}
+                    className="flex-grow-1 bg-light p-3 rounded mb-3"
+                    style={{ overflowY: 'auto' }}
                 >
                     <ListGroup variant="flush">
                         {chatHistory.map((msg, idx) => (
@@ -317,6 +319,9 @@ export default function Home() {
                                     <strong className={msg.sender === 'Bot' ? 'text-primary' : 'text-success'}>
                                         {msg.sender}
                                     </strong>
+                                    {msg.sender === 'Bot' && idx === chatHistory.length - 1 && isStreaming && (
+                                        <span className="ms-2 badge bg-info">Streaming...</span>
+                                    )}
                                 </div>
                                 <div className="message-content">
                                     {msg.sender === 'Bot' ? (
@@ -326,14 +331,32 @@ export default function Home() {
                                                 code({node, inline, className, children, ...props}) {
                                                     const match = /language-(\w+)/.exec(className || '');
                                                     return !inline && match ? (
-                                                        <SyntaxHighlighter
-                                                            style={vscDarkPlus}
-                                                            language={match[1]}
-                                                            PreTag="div"
-                                                            {...props}
-                                                        >
-                                                            {String(children).replace(/\n$/, '')}
-                                                        </SyntaxHighlighter>
+                                                        <div className="position-relative">
+                                                            <div className="position-absolute top-0 end-0 m-1">
+                                                                <OverlayTrigger
+                                                                    placement="top"
+                                                                    overlay={<Tooltip>Copy code</Tooltip>}
+                                                                >
+                                                                    <Button 
+                                                                        variant="light" 
+                                                                        size="sm"
+                                                                        onClick={() => {
+                                                                            navigator.clipboard.writeText(String(children));
+                                                                        }}
+                                                                    >
+                                                                        <FaCopy />
+                                                                    </Button>
+                                                                </OverlayTrigger>
+                                                            </div>
+                                                            <SyntaxHighlighter
+                                                                style={vscDarkPlus}
+                                                                language={match[1]}
+                                                                PreTag="div"
+                                                                {...props}
+                                                            >
+                                                                {String(children).replace(/\n$/, '')}
+                                                            </SyntaxHighlighter>
+                                                        </div>
                                                     ) : (
                                                         <code className={className} {...props}>
                                                             {children}
@@ -350,24 +373,32 @@ export default function Home() {
                                 </div>
                             </ListGroup.Item>
                         ))}
+                        <div ref={chatEndRef} />
                     </ListGroup>
                 </div>
-                <InputGroup>
-                    <Form.Control
-                        type="text"
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        placeholder="Type your message..."
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter") handleSendMessage();
-                        }}
-                    />
-                    <Button variant="primary" onClick={handleSendMessage}>
-                        Send
-                    </Button>
-                </InputGroup>
-                <Form className="mt-3 d-flex flex-row">
-                    <Form.Group className="mb-3 me-3">
+
+                {/* Chat Input */}
+                <div>
+                    <InputGroup className="mb-2">
+                        <Form.Control
+                            type="text"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            placeholder="Type your message..."
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && !isStreaming) handleSendMessage();
+                            }}
+                            disabled={isStreaming}
+                        />
+                        <Button 
+                            variant="primary" 
+                            onClick={handleSendMessage}
+                            disabled={isStreaming || !chatInput.trim()}
+                        >
+                            {isStreaming ? 'Streaming...' : 'Send'}
+                        </Button>
+                    </InputGroup>
+                    <div className="d-flex">
                         <Form.Check
                             type="checkbox"
                             id="searxng-enabled"
@@ -376,13 +407,10 @@ export default function Home() {
                             onChange={(e) => {
                                 const newConfig = {...config, searxng_enabled: e.target.checked};
                                 setConfig(newConfig);
-                                // Pass the new config directly to handleConfigChange
                                 handleConfigChange(newConfig);
                             }}
+                            className="me-3"
                         />
-                    </Form.Group>
-
-                    <Form.Group className="mb-3 me-3">
                         <Form.Check
                             type="checkbox"
                             id="deep-thinking"
@@ -391,13 +419,12 @@ export default function Home() {
                             onChange={(e) => {
                                 const newConfig = {...config, deep_thinking: e.target.checked};
                                 setConfig(newConfig);
-                                // Pass the new config directly to handleConfigChange
                                 handleConfigChange(newConfig);
                             }}
                         />
-                    </Form.Group>
-                </Form>
-            </Card.Body>
-        </Card>
-    </Container>);
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }
