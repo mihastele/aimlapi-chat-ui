@@ -14,6 +14,22 @@ This is a [Next.js](https://nextjs.org) chat application that connects to AI API
 - Chat history storage in the database
 - NEW CHAT functionality to start fresh conversations
 
+## Showcase
+
+Here are some screenshots of the application in action:
+
+![Chat Interface](github-images/a.png)
+*Main chat interface with AI responses*
+
+![Configuration Settings](github-images/b.png)
+*Configuration and API settings panel*
+
+![Model Selection](github-images/c.jpg)
+*Model selection and parameters*
+
+![Search Integration](github-images/d.png)
+*SearxNG search integration in action*
+
 ## Getting Started
 
 First, install the dependencies:
