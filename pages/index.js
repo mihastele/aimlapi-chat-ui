@@ -2,15 +2,29 @@
 
 import {useState, useEffect, useRef} from "react";
 import axios from "axios";
-import {Container, Row, Col, Form, Button, Card, ListGroup, InputGroup, Dropdown, Navbar, Nav, OverlayTrigger, Tooltip} from 'react-bootstrap';
+import {
+    Container,
+    Row,
+    Col,
+    Form,
+    Button,
+    Card,
+    ListGroup,
+    InputGroup,
+    Dropdown,
+    Navbar,
+    Nav,
+    OverlayTrigger,
+    Tooltip
+} from 'react-bootstrap';
 import {useRouter} from 'next/router';
 import Cookies from 'js-cookie';
 // At the top of your file, add these imports
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
-import { FaCog, FaCube, FaCopy, FaImage } from 'react-icons/fa';
+import {Prism as SyntaxHighlighter} from 'react-syntax-highlighter';
+import {vscDarkPlus} from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import {FaCog, FaCube, FaCopy, FaImage} from 'react-icons/fa';
 
 
 export default function Home() {
@@ -34,7 +48,7 @@ export default function Home() {
     const chatEndRef = useRef(null);
 
     // Filter models based on search term and model type
-    const filteredModels = models.filter(model => 
+    const filteredModels = models.filter(model =>
         model.name.toLowerCase().includes(modelSearchTerm.toLowerCase()) &&
         model.type === selectedModelType
     );
@@ -47,7 +61,7 @@ export default function Home() {
                 const sessionId = res.data.sessionId;
                 setCurrentSessionId(sessionId);
                 // Save session ID in cookie (expires in 7 days)
-                Cookies.set('chat_session_id', sessionId, { expires: 14 });
+                Cookies.set('chat_session_id', sessionId, {expires: 14});
                 setChatHistory([]);
             })
             .catch((err) => console.error("Error creating chat session:", err));
@@ -161,7 +175,7 @@ export default function Home() {
     // Auto-scroll to bottom of chat when new messages arrive
     useEffect(() => {
         if (chatEndRef.current) {
-            chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            chatEndRef.current.scrollIntoView({behavior: 'smooth'});
         }
     }, [chatHistory]);
 
@@ -187,15 +201,19 @@ export default function Home() {
     const sendMessage = (sessionId) => {
         // Update chat history with the user message
         const userMessage = {sender: "User", text: chatInput};
-        setChatHistory((prev) => [...prev, userMessage]);
 
         // Store the message to clear the input field
         const currentMessage = chatInput;
         setChatInput("");
 
-        // Add a placeholder for the bot response
-        const placeholderIndex = chatHistory.length + 1; // +1 for the user message we just added
-        setChatHistory((prev) => [...prev, {sender: "Bot", text: ""}]);
+        // Add both user message and a placeholder for the bot response
+        setChatHistory((prev) => {
+            const newHistory = [...prev, userMessage, {sender: "Bot", text: ""}];
+            return newHistory;
+        });
+
+        // Calculate the placeholder index after adding both messages
+        const placeholderIndex = chatHistory.length + 1; // +1 because we just added the user message, and the bot placeholder is right after
 
         // Set streaming state to true
         setIsStreaming(true);
@@ -217,121 +235,121 @@ export default function Home() {
                 sessionId: sessionId
             })
         })
-        .then(response => {
-            // Create a reader for the response body stream
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
+            .then(response => {
+                // Create a reader for the response body stream
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
 
-            // Function to process the stream
-            function processStream() {
-                // Read from the stream
-                reader.read().then(({ done, value }) => {
-                    // If the stream is done, set streaming to false
-                    if (done) {
-                        setIsStreaming(false);
-                        return;
-                    }
+                // Function to process the stream
+                function processStream() {
+                    // Read from the stream
+                    reader.read().then(({done, value}) => {
+                        // If the stream is done, set streaming to false
+                        if (done) {
+                            setIsStreaming(false);
+                            return;
+                        }
 
-                    // Decode the chunk
-                    const chunk = decoder.decode(value, { stream: true });
+                        // Decode the chunk
+                        const chunk = decoder.decode(value, {stream: true});
 
-                    // Process each line in the chunk
-                    const lines = chunk.split('\n\n');
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(line.substring(6));
+                        // Process each line in the chunk
+                        const lines = chunk.split('\n\n');
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.substring(6));
 
-                                // If there's a chunk, add it to the response
-                                if (data.chunk) {
-                                    responseText += data.chunk;
+                                    // If there's a chunk, add it to the response
+                                    if (data.chunk) {
+                                        responseText += data.chunk;
 
-                                    // Update the bot message with the current accumulated response
-                                    setChatHistory((prev) => {
-                                        const newHistory = [...prev];
-                                        newHistory[placeholderIndex] = {sender: "Bot", text: responseText};
-                                        return newHistory;
-                                    });
-                                }
-
-                                // If there's an error, show it
-                                if (data.error) {
-                                    responseText += `\n\nError: ${data.error}`;
-                                    setChatHistory((prev) => {
-                                        const newHistory = [...prev];
-                                        newHistory[placeholderIndex] = {sender: "Bot", text: responseText};
-                                        return newHistory;
-                                    });
-                                }
-
-                                // If we're done, stop streaming
-                                if (data.done) {
-                                    setIsStreaming(false);
-
-                                    // Update token information if available
-                                    if (data.tokens) {
-                                        // Update the last message with token information
+                                        // Update the bot message with the current accumulated response
                                         setChatHistory((prev) => {
                                             const newHistory = [...prev];
-                                            const lastBotMessageIndex = newHistory.length - 1;
-                                            if (lastBotMessageIndex >= 0 && newHistory[lastBotMessageIndex].sender === 'Bot') {
-                                                newHistory[lastBotMessageIndex] = {
-                                                    ...newHistory[lastBotMessageIndex],
-                                                    tokens: data.tokens
-                                                };
-                                            }
+                                            newHistory[placeholderIndex] = {sender: "Bot", text: responseText};
                                             return newHistory;
                                         });
                                     }
 
-                                    // Update total tokens if available
-                                    if (data.total_tokens) {
-                                        setTotalTokens(data.total_tokens);
+                                    // If there's an error, show it
+                                    if (data.error) {
+                                        responseText += `\n\nError: ${data.error}`;
+                                        setChatHistory((prev) => {
+                                            const newHistory = [...prev];
+                                            newHistory[placeholderIndex] = {sender: "Bot", text: responseText};
+                                            return newHistory;
+                                        });
                                     }
 
-                                    return;
+                                    // If we're done, stop streaming
+                                    if (data.done) {
+                                        setIsStreaming(false);
+
+                                        // Update token information if available
+                                        if (data.tokens) {
+                                            // Update the last message with token information
+                                            setChatHistory((prev) => {
+                                                const newHistory = [...prev];
+                                                const lastBotMessageIndex = newHistory.length - 1;
+                                                if (lastBotMessageIndex >= 0 && newHistory[lastBotMessageIndex].sender === 'Bot') {
+                                                    newHistory[lastBotMessageIndex] = {
+                                                        ...newHistory[lastBotMessageIndex],
+                                                        tokens: data.tokens
+                                                    };
+                                                }
+                                                return newHistory;
+                                            });
+                                        }
+
+                                        // Update total tokens if available
+                                        if (data.total_tokens) {
+                                            setTotalTokens(data.total_tokens);
+                                        }
+
+                                        return;
+                                    }
+                                } catch (error) {
+                                    console.error('Error parsing event data:', error);
                                 }
-                            } catch (error) {
-                                console.error('Error parsing event data:', error);
                             }
                         }
-                    }
 
-                    // Continue processing the stream
-                    processStream();
-                }).catch(err => {
-                    console.error("Error reading stream:", err);
-                    setIsStreaming(false);
+                        // Continue processing the stream
+                        processStream();
+                    }).catch(err => {
+                        console.error("Error reading stream:", err);
+                        setIsStreaming(false);
 
-                    // Update the bot message with the error
-                    setChatHistory((prev) => {
-                        const newHistory = [...prev];
-                        newHistory[placeholderIndex] = {
-                            sender: "Bot", 
-                            text: responseText || `Error: ${err.message}`
-                        };
-                        return newHistory;
+                        // Update the bot message with the error
+                        setChatHistory((prev) => {
+                            const newHistory = [...prev];
+                            newHistory[placeholderIndex] = {
+                                sender: "Bot",
+                                text: responseText || `Error: ${err.message}`
+                            };
+                            return newHistory;
+                        });
                     });
+                }
+
+                // Start processing the stream
+                processStream();
+            })
+            .catch(err => {
+                console.error("Error initiating stream:", err);
+                setIsStreaming(false);
+
+                // Update the bot message with the error
+                setChatHistory((prev) => {
+                    const newHistory = [...prev];
+                    newHistory[placeholderIndex] = {
+                        sender: "Bot",
+                        text: `Error: ${err.message}`
+                    };
+                    return newHistory;
                 });
-            }
-
-            // Start processing the stream
-            processStream();
-        })
-        .catch(err => {
-            console.error("Error initiating stream:", err);
-            setIsStreaming(false);
-
-            // Update the bot message with the error
-            setChatHistory((prev) => {
-                const newHistory = [...prev];
-                newHistory[placeholderIndex] = {
-                    sender: "Bot", 
-                    text: `Error: ${err.message}`
-                };
-                return newHistory;
             });
-        });
     };
 
     // Update backend config
@@ -355,7 +373,8 @@ export default function Home() {
                 <Navbar.Brand href="#" className="me-auto">AIMLAPI Chat UI</Navbar.Brand>
                 {totalTokens > 0 && (
                     <div className="text-light me-3">
-                        <small>Total Tokens: <span className="badge bg-light text-dark">{totalTokens.toLocaleString()}</span></small>
+                        <small>Total Tokens: <span
+                            className="badge bg-light text-dark">{totalTokens.toLocaleString()}</span></small>
                     </div>
                 )}
                 <Nav>
@@ -383,10 +402,11 @@ export default function Home() {
                         show={showModelDropdown}
                         onToggle={(isOpen) => setShowModelDropdown(isOpen)}
                     >
-                        <Dropdown.Toggle variant="light" size="sm" style={{ width: '200px', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        <Dropdown.Toggle variant="light" size="sm"
+                                         style={{width: '200px', textOverflow: 'ellipsis', overflow: 'hidden'}}>
                             {selectedModel}
                         </Dropdown.Toggle>
-                        <Dropdown.Menu style={{ width: '250px', maxHeight: '300px', overflow: 'auto' }}>
+                        <Dropdown.Menu style={{width: '250px', maxHeight: '300px', overflow: 'auto'}}>
                             <div className="px-2 py-1">
                                 <Form.Control
                                     size="sm"
@@ -398,11 +418,11 @@ export default function Home() {
                                     autoFocus
                                 />
                             </div>
-                            <Dropdown.Divider />
+                            <Dropdown.Divider/>
                             {filteredModels.length > 0 ? (
                                 filteredModels.map((model, idx) => (
-                                    <Dropdown.Item 
-                                        key={idx} 
+                                    <Dropdown.Item
+                                        key={idx}
                                         onClick={() => {
                                             setSelectedModel(model.name);
                                             // Save selected model to localStorage
@@ -429,7 +449,7 @@ export default function Home() {
                             )}
                         </Dropdown.Menu>
                     </Dropdown>
-                    <Button 
+                    <Button
                         variant="light"
                         size="sm"
                         className="me-2 my-2"
@@ -440,7 +460,7 @@ export default function Home() {
                     </Button>
                     <Button
                         variant="outline-light"
-                        size="sm" 
+                        size="sm"
                         className="me-5 my-2"
                         onClick={createNewChatSession}
                     >
@@ -448,28 +468,28 @@ export default function Home() {
                     </Button>
                     <div className="me-5"></div>
                     <Button
-                        variant="outline-light" 
-                        size="sm" 
+                        variant="outline-light"
+                        size="sm"
                         className="me-2 my-2"
                         onClick={() => router.push('/model-generator')}
                     >
-                        <FaCube className="me-1" /> 3D Model
+                        <FaCube className="me-1"/> 3D Model
                     </Button>
-                    <Button 
-                        variant="outline-light" 
-                        size="sm" 
+                    <Button
+                        variant="outline-light"
+                        size="sm"
                         className="me-2 my-2"
                         onClick={() => router.push('/image-generator')}
                     >
-                        <FaImage className="me-1" /> Image Generator
+                        <FaImage className="me-1"/> Image Generator
                     </Button>
                     <Button
                         className="me-2 my-2"
-                        variant="outline-light" 
+                        variant="outline-light"
                         size="sm"
                         onClick={() => router.push('/settings')}
                     >
-                        <FaCog className="me-1" /> Settings
+                        <FaCog className="me-1"/> Settings
                     </Button>
                 </Nav>
             </Navbar>
@@ -479,7 +499,7 @@ export default function Home() {
                 {/* Chat Messages */}
                 <div
                     className="flex-grow-1 bg-light p-3 rounded mb-3"
-                    style={{ overflowY: 'auto' }}
+                    style={{overflowY: 'auto'}}
                 >
                     <ListGroup variant="flush">
                         {chatHistory.map((msg, idx) => (
@@ -516,14 +536,14 @@ export default function Home() {
                                                                     placement="top"
                                                                     overlay={<Tooltip>Copy code</Tooltip>}
                                                                 >
-                                                                    <Button 
-                                                                        variant="light" 
+                                                                    <Button
+                                                                        variant="light"
                                                                         size="sm"
                                                                         onClick={() => {
                                                                             navigator.clipboard.writeText(String(children));
                                                                         }}
                                                                     >
-                                                                        <FaCopy />
+                                                                        <FaCopy/>
                                                                     </Button>
                                                                 </OverlayTrigger>
                                                             </div>
@@ -552,7 +572,7 @@ export default function Home() {
                                 </div>
                             </ListGroup.Item>
                         ))}
-                        <div ref={chatEndRef} />
+                        <div ref={chatEndRef}/>
                     </ListGroup>
                 </div>
 
@@ -569,8 +589,8 @@ export default function Home() {
                             }}
                             disabled={isStreaming}
                         />
-                        <Button 
-                            variant="primary" 
+                        <Button
+                            variant="primary"
                             onClick={handleSendMessage}
                             disabled={isStreaming || !chatInput.trim()}
                         >
