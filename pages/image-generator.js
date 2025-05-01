@@ -5,6 +5,8 @@ import {Container, Row, Col, Form, Button, Card, Alert, Spinner, Image, InputGro
 import axios from "axios";
 import { useRouter } from 'next/router';
 import { FaImage, FaCube, FaCog, FaSync } from 'react-icons/fa';
+import { getModelConfig } from '../lib/image-models';
+
 
 
 
@@ -67,6 +69,135 @@ export default function ImageGenerator() {
         // Custom option
         { name: "Custom", width: 1024, height: 768, note: "(32 MUL)" }
     ];
+
+// Get model configuration based on model name
+//     export function getModelConfig(modelName) {
+//         if (!modelName) return defaultModelConfig;
+//
+//         // Check if model name contains specific provider keywords
+//         if (modelName.toLowerCase().includes('dall-e') || modelName.toLowerCase().includes('openai')) {
+//             return dalleModelConfig;
+//         } else if (modelName.toLowerCase().includes('stability') || modelName.toLowerCase().includes('sdxl')) {
+//             return stabilityAIModelConfig;
+//         }
+//
+//         // Default fallback
+//         return defaultModelConfig;
+//     }
+
+
+    // // Inside your component, add this function
+    // const getModelSpecificUI = () => {
+    //     // Get the configuration for the currently selected model
+    //     const modelConfig = getModelConfig(model);
+    //     const uiComponents = modelConfig.getUIComponents();
+    //
+    //     return uiComponents;
+    // };
+
+    // Update the getModelSpecificUI function to handle missing model configs
+    const getModelSpecificUI = () => {
+        // Get the configuration for the currently selected model
+        const modelConfig = getModelConfig(model);
+
+        // If no model is selected or the model config doesn't exist, return empty array
+        if (!model || !modelConfig) {
+            return [];
+        }
+
+        // Get UI components from the model config
+        try {
+            return modelConfig.getUIComponents();
+        } catch (error) {
+            console.error("Error getting UI components for model:", error);
+            return [];
+        }
+    };
+
+    // Add this function to prepare the request payload
+    const prepareRequestPayload = () => {
+        // Get the configuration for the currently selected model
+        const modelConfig = getModelConfig(model);
+
+        // Collect all form values
+        const formValues = {
+            prompt,
+            width,
+            height,
+            numInferenceSteps,
+            guidanceScale,
+            safetyTolerance,
+            outputFormat,
+            numImages,
+            seed,
+            // Add any model-specific parameters here
+            negativePrompt: negativePrompt || "",
+            size: selectedSize || "1024x1024",
+            quality: selectedQuality || "standard",
+            style: selectedStyle || "vivid"
+        };
+
+        // Get model-specific request parameters
+        const payload = modelConfig.getRequestParams(formValues);
+
+        // Validate the parameters
+        const validation = modelConfig.validateParams(payload);
+        if (!validation.valid) {
+            throw new Error(validation.error);
+        }
+
+        return payload;
+    };
+
+    // Update your handleGenerateImage function
+    const handleGenerateImage = async () => {
+        if (!prompt.trim()) {
+            setError("Please enter a prompt");
+            return;
+        }
+
+        if (!apiKey) {
+            setError("API key is required. Please set it in the settings page.");
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+        setImageUrl(null);
+        setGeneratedBatch([]);
+
+        try {
+            // Prepare the request payload based on the selected model
+            const payload = prepareRequestPayload();
+
+            const response = await axios.post("/api/image-generation", payload);
+
+            // Set the first image URL for backward compatibility
+            setImageUrl(response.data.image_url);
+
+            // Set the batch of generated images if available
+            if (response.data.images && response.data.images.length > 0) {
+                setGeneratedBatch(response.data.images);
+            } else {
+                // Fallback for backward compatibility
+                setGeneratedBatch([{
+                    image_url: response.data.image_url,
+                    width: response.data.width,
+                    height: response.data.height
+                }]);
+            }
+
+            setIsLoading(false);
+
+            // Refresh the list of generated images
+            loadGeneratedImages();
+
+        } catch (err) {
+            console.error("Error generating image:", err);
+            setError(`Error: ${err.response?.data?.error || err.message}`);
+            setIsLoading(false);
+        }
+    };
 
     const router = useRouter();
 
@@ -181,65 +312,65 @@ export default function ImageGenerator() {
         }
     };
 
-    // Generate image from prompt
-    const handleGenerateImage = async () => {
-        if (!prompt.trim()) {
-            setError("Please enter a prompt");
-            return;
-        }
-
-        if (!apiKey) {
-            setError("API key is required. Please set it in the settings page.");
-            return;
-        }
-
-        setIsLoading(true);
-        setError(null);
-        setImageUrl(null);
-        setGeneratedBatch([]);
-
-        try {
-            const response = await axios.post("/api/image-generation", {
-                prompt,
-                model,
-                image_size: {
-                    width: parseInt(width),
-                    height: parseInt(height)
-                },
-                num_inference_steps: parseInt(numInferenceSteps),
-                guidance_scale: parseFloat(guidanceScale),
-                safety_tolerance: safetyTolerance,
-                output_format: outputFormat,
-                num_images: parseInt(numImages),
-                seed: seed ? parseInt(seed) : undefined
-            });
-
-            // Set the first image URL for backward compatibility
-            setImageUrl(response.data.image_url);
-
-            // Set the batch of generated images if available
-            if (response.data.images && response.data.images.length > 0) {
-                setGeneratedBatch(response.data.images);
-            } else {
-                // Fallback for backward compatibility
-                setGeneratedBatch([{
-                    image_url: response.data.image_url,
-                    width: response.data.width,
-                    height: response.data.height
-                }]);
-            }
-
-            setIsLoading(false);
-
-            // Refresh the list of generated images
-            loadGeneratedImages();
-
-        } catch (err) {
-            console.error("Error generating image:", err);
-            setError(`Error: ${err.response?.data?.error || err.message}`);
-            setIsLoading(false);
-        }
-    };
+    // // Generate image from prompt
+    // const handleGenerateImage = async () => {
+    //     if (!prompt.trim()) {
+    //         setError("Please enter a prompt");
+    //         return;
+    //     }
+    //
+    //     if (!apiKey) {
+    //         setError("API key is required. Please set it in the settings page.");
+    //         return;
+    //     }
+    //
+    //     setIsLoading(true);
+    //     setError(null);
+    //     setImageUrl(null);
+    //     setGeneratedBatch([]);
+    //
+    //     try {
+    //         const response = await axios.post("/api/image-generation", {
+    //             prompt,
+    //             model,
+    //             image_size: {
+    //                 width: parseInt(width),
+    //                 height: parseInt(height)
+    //             },
+    //             num_inference_steps: parseInt(numInferenceSteps),
+    //             guidance_scale: parseFloat(guidanceScale),
+    //             safety_tolerance: safetyTolerance,
+    //             output_format: outputFormat,
+    //             num_images: parseInt(numImages),
+    //             seed: seed ? parseInt(seed) : undefined
+    //         });
+    //
+    //         // Set the first image URL for backward compatibility
+    //         setImageUrl(response.data.image_url);
+    //
+    //         // Set the batch of generated images if available
+    //         if (response.data.images && response.data.images.length > 0) {
+    //             setGeneratedBatch(response.data.images);
+    //         } else {
+    //             // Fallback for backward compatibility
+    //             setGeneratedBatch([{
+    //                 image_url: response.data.image_url,
+    //                 width: response.data.width,
+    //                 height: response.data.height
+    //             }]);
+    //         }
+    //
+    //         setIsLoading(false);
+    //
+    //         // Refresh the list of generated images
+    //         loadGeneratedImages();
+    //
+    //     } catch (err) {
+    //         console.error("Error generating image:", err);
+    //         setError(`Error: ${err.response?.data?.error || err.message}`);
+    //         setIsLoading(false);
+    //     }
+    // };
 
     return (
         <Container className="py-4">
@@ -517,6 +648,74 @@ export default function ImageGenerator() {
                                 {/*</Form.Group>*/}
                             </Col>
                         </Row>
+
+                        {/* Model-specific UI components */}
+                        {model && (
+                            <div className="mb-3 p-3 border rounded bg-light">
+                                <h5>Model-specific settings</h5>
+                                {getModelSpecificUI().map((component, index) => {
+                                    // Render different UI components based on type
+                                    if (component.type === 'text') {
+                                        return (
+                                            <Form.Group className="mb-3" key={index}>
+                                                <Form.Label>{component.label}</Form.Label>
+                                                <Form.Control
+                                                    type="text"
+                                                    value={
+                                                        component.name === 'negativePrompt' ? negativePrompt :
+                                                            component.name === 'style' ? selectedStyle :
+                                                                ''
+                                                    }
+                                                    onChange={(e) => {
+                                                        if (component.name === 'negativePrompt') setNegativePrompt(e.target.value);
+                                                        else if (component.name === 'style') setSelectedStyle(e.target.value);
+                                                    }}
+                                                    placeholder={component.placeholder || ''}
+                                                    disabled={isLoading}
+                                                />
+                                                {component.helpText && (
+                                                    <Form.Text className="text-muted">
+                                                        {component.helpText}
+                                                    </Form.Text>
+                                                )}
+                                            </Form.Group>
+                                        );
+                                    } else if (component.type === 'select') {
+                                        return (
+                                            <Form.Group className="mb-3" key={index}>
+                                                <Form.Label>{component.label}</Form.Label>
+                                                <Form.Select
+                                                    value={
+                                                        component.name === 'size' ? selectedSize :
+                                                            component.name === 'quality' ? selectedQuality :
+                                                                component.name === 'style' ? selectedStyle :
+                                                                    ''
+                                                    }
+                                                    onChange={(e) => {
+                                                        if (component.name === 'size') setSelectedSize(e.target.value);
+                                                        else if (component.name === 'quality') setSelectedQuality(e.target.value);
+                                                        else if (component.name === 'style') setSelectedStyle(e.target.value);
+                                                    }}
+                                                    disabled={isLoading}
+                                                >
+                                                    {component.options.map((option, idx) => (
+                                                        <option key={idx} value={option.value}>
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
+                                                </Form.Select>
+                                                {component.helpText && (
+                                                    <Form.Text className="text-muted">
+                                                        {component.helpText}
+                                                    </Form.Text>
+                                                )}
+                                            </Form.Group>
+                                        );
+                                    }
+                                    return null;
+                                })}
+                            </div>
+                        )}
 
                         <Form.Group className="mb-3">
                             <Form.Label>Seed (Optional)</Form.Label>
