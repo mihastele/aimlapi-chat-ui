@@ -6,6 +6,8 @@ import axios from "axios";
 import { useRouter } from 'next/router';
 import { FaImage, FaCube, FaCog, FaSync } from 'react-icons/fa';
 
+
+
 export default function ImageGenerator() {
     const [prompt, setPrompt] = useState("");
     const [apiKey, setApiKey] = useState("");
@@ -26,6 +28,45 @@ export default function ImageGenerator() {
     const [seed, setSeed] = useState("");
     const [isRefreshingModels, setIsRefreshingModels] = useState(false);
     const [isLoadingModels, setIsLoadingModels] = useState(false);
+    // Add this import at the top of your file
+    // Inside your component, add this state
+    const [selectedPreset, setSelectedPreset] = useState("Square (1024×1024)");
+
+    // Define image size presets (all values are multiples of 32)
+    const IMAGE_SIZE_PRESETS = [
+        // Default size
+        { name: "Default (1024×768)", width: 1024, height: 768, note: "(32 MUL)" },
+
+        // Square formats
+        { name: "Min Square (256×256)", width: 256, height: 256, note: "(32 MUL)" },
+        { name: "Square (512×512)", width: 512, height: 512, note: "(32 MUL)" },
+        { name: "Square (768×768)", width: 768, height: 768, note: "(32 MUL)" },
+        { name: "Square (1024×1024)", width: 1024, height: 1024, note: "(32 MUL)" },
+        { name: "Max Square (1440×1440)", width: 1440, height: 1440, note: "(32 MUL)" },
+
+        // Portrait formats
+        { name: "Portrait (512×768)", width: 512, height: 768, note: "(32 MUL)" },
+        { name: "Portrait (768×1024)", width: 768, height: 1024, note: "(32 MUL)" },
+        { name: "Portrait (832×1216)", width: 832, height: 1216, note: "(32 MUL)" },
+
+        // Landscape formats
+        { name: "Landscape (768×512)", width: 768, height: 512, note: "(32 MUL)" },
+        { name: "Landscape (1024×768)", width: 1024, height: 768, note: "(32 MUL)" },
+        { name: "Landscape (1216×832)", width: 1216, height: 832, note: "(32 MUL)" },
+
+        // Widescreen formats
+        { name: "Widescreen (1024×576)", width: 1024, height: 576, note: "(32 MUL)" },
+        { name: "Widescreen (1280×720)", width: 1280, height: 720, note: "(32 MUL)" },
+        { name: "Widescreen (1408×768)", width: 1408, height: 768, note: "(32 MUL)" },
+
+        // Banner formats
+        { name: "Banner (1024×320)", width: 1024, height: 320, note: "(32 MUL)" },
+        { name: "Wide Banner (1280×384)", width: 1280, height: 384, note: "(32 MUL)" },
+        { name: "Slim Banner (1024×256)", width: 1024, height: 256, note: "(32 MUL)" },
+
+        // Custom option
+        { name: "Custom", width: 1024, height: 768, note: "(32 MUL)" }
+    ];
 
     const router = useRouter();
 
@@ -48,6 +89,20 @@ export default function ImageGenerator() {
                 console.error("Error loading models:", err);
                 setIsLoadingModels(false);
             });
+    };
+
+    // Add this function to handle preset changes
+    const handlePresetChange = (e) => {
+        const presetName = e.target.value;
+        setSelectedPreset(presetName);
+
+        // Find the selected preset
+        const preset = IMAGE_SIZE_PRESETS.find(p => p.name === presetName);
+        if (preset) {
+            // Update width and height based on the preset
+            setWidth(preset.width);
+            setHeight(preset.height);
+        }
     };
 
     // Function to refresh models from API
@@ -291,36 +346,100 @@ export default function ImageGenerator() {
                             </Col>
                         </Row>
 
+                        {/*// Add this JSX before your width and height inputs*/}
+                        <Form.Group className="mb-3">
+                            <Form.Label>Size Preset {selectedPreset !== "Custom" && <span className="text-muted small">{IMAGE_SIZE_PRESETS.find(p => p.name === selectedPreset)?.note}</span>}</Form.Label>
+                            <Form.Select
+                                value={selectedPreset}
+                                onChange={handlePresetChange}
+                                className="mb-2"
+                            >
+                                {IMAGE_SIZE_PRESETS.map((preset, index) => (
+                                    <option key={index} value={preset.name}>
+                                        {preset.name}
+                                    </option>
+                                ))}
+                            </Form.Select>
+                        </Form.Group>
+
                         <Row>
-                            <Col md={6}>
+                            <Col>
                                 <Form.Group className="mb-3">
-                                    <Form.Label>Width</Form.Label>
+                                    <Form.Label>Width (256-1440, multiple of 32)</Form.Label>
                                     <Form.Control
                                         type="number"
                                         value={width}
-                                        onChange={(e) => setWidth(e.target.value)}
-                                        min="64"
-                                        max="2048"
-                                        step="64"
-                                        disabled={isLoading}
+                                        onChange={(e) => {
+                                            const value = parseInt(e.target.value);
+                                            // Ensure value is within range and a multiple of 32
+                                            if (value >= 256 && value <= 1440) {
+                                                const adjustedValue = Math.round(value / 32) * 32;
+                                                setWidth(adjustedValue);
+                                                // Set to custom when manually changed
+                                                setSelectedPreset("Custom");
+                                            }
+                                        }}
+                                        min={256}
+                                        max={1440}
+                                        step={32}
                                     />
                                 </Form.Group>
                             </Col>
-                            <Col md={6}>
+                            <Col>
                                 <Form.Group className="mb-3">
-                                    <Form.Label>Height</Form.Label>
+                                    <Form.Label>Height (256-1440, multiple of 32)</Form.Label>
                                     <Form.Control
                                         type="number"
                                         value={height}
-                                        onChange={(e) => setHeight(e.target.value)}
-                                        min="64"
-                                        max="2048"
-                                        step="64"
-                                        disabled={isLoading}
+                                        onChange={(e) => {
+                                            const value = parseInt(e.target.value);
+                                            // Ensure value is within range and a multiple of 32
+                                            if (value >= 256 && value <= 1440) {
+                                                const adjustedValue = Math.round(value / 32) * 32;
+                                                setHeight(adjustedValue);
+                                                // Set to custom when manually changed
+                                                setSelectedPreset("Custom");
+                                            }
+                                        }}
+                                        min={256}
+                                        max={1440}
+                                        step={32}
                                     />
                                 </Form.Group>
                             </Col>
                         </Row>
+
+
+                        {/*<Row>*/}
+                        {/*    <Col md={6}>*/}
+                        {/*        <Form.Group className="mb-3">*/}
+                        {/*            <Form.Label>Width</Form.Label>*/}
+                        {/*            <Form.Control*/}
+                        {/*                type="number"*/}
+                        {/*                value={width}*/}
+                        {/*                onChange={(e) => setWidth(e.target.value)}*/}
+                        {/*                min="64"*/}
+                        {/*                max="2048"*/}
+                        {/*                step="64"*/}
+                        {/*                disabled={isLoading}*/}
+                        {/*            />*/}
+                        {/*        </Form.Group>*/}
+                        {/*    </Col>*/}
+                        {/*    <Col md={6}>*/}
+                        {/*        <Form.Group className="mb-3">*/}
+                        {/*            <Form.Label>Height</Form.Label>*/}
+                        {/*            <Form.Control*/}
+                        {/*                type="number"*/}
+                        {/*                value={height}*/}
+                        {/*                onChange={(e) => setHeight(e.target.value)}*/}
+                        {/*                min="64"*/}
+                        {/*                max="2048"*/}
+                        {/*                step="64"*/}
+                        {/*                disabled={isLoading}*/}
+                        {/*            />*/}
+                        {/*        </Form.Group>*/}
+                        {/*    </Col>*/}
+                        {/*</Row>*/}
 
                         <Row>
                             <Col md={6}>
@@ -367,9 +486,9 @@ export default function ImageGenerator() {
                                         onChange={(e) => setSafetyTolerance(e.target.value)}
                                         disabled={isLoading}
                                     >
-                                        <option value="low">Low</option>
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
+                                        <option value="1">Low (Strict)</option>
+                                        <option value="3">Medium</option>
+                                        <option value="6">High</option>
                                     </Form.Select>
                                 </Form.Group>
                             </Col>
