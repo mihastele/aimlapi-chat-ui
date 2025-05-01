@@ -121,37 +121,47 @@ export default function ImageGenerator() {
 
     // Add this function to prepare the request payload
     const prepareRequestPayload = () => {
-        // Get the configuration for the currently selected model
-        const modelConfig = getModelConfig(model);
+        try {
+            // Get the configuration for the currently selected model
+            const modelConfig = getModelConfig(model);
 
-        // Collect all form values
-        const formValues = {
-            prompt,
-            width,
-            height,
-            numInferenceSteps,
-            guidanceScale,
-            safetyTolerance,
-            outputFormat,
-            numImages,
-            seed,
-            // Add any model-specific parameters here
-            negativePrompt: negativePrompt || "",
-            size: selectedSize || "1024x1024",
-            quality: selectedQuality || "standard",
-            style: selectedStyle || "vivid"
-        };
+            if (!modelConfig) {
+                throw new Error("No configuration found for the selected model");
+            }
 
-        // Get model-specific request parameters
-        const payload = modelConfig.getRequestParams(formValues);
+            // Collect all form values
+            const formValues = {
+                prompt,
+                model,
+                width,
+                height,
+                numInferenceSteps,
+                guidanceScale,
+                safetyTolerance,
+                outputFormat,
+                numImages,
+                seed,
+                // Add any model-specific parameters here
+                negativePrompt,
+                size: selectedSize,
+                quality: selectedQuality,
+                style: selectedStyle
+            };
 
-        // Validate the parameters
-        const validation = modelConfig.validateParams(payload);
-        if (!validation.valid) {
-            throw new Error(validation.error);
+            // Get model-specific request parameters
+            const payload = modelConfig.getRequestParams(formValues);
+
+            // Validate the parameters
+            const validation = modelConfig.validateParams(payload);
+            if (!validation.valid) {
+                throw new Error(validation.error);
+            }
+
+            return payload;
+        } catch (error) {
+            setError(`Error preparing request: ${error.message}`);
+            throw error;
         }
-
-        return payload;
     };
 
     // Update your handleGenerateImage function
@@ -275,22 +285,23 @@ export default function ImageGenerator() {
                 setError("Failed to load API settings. Please ensure you have set your API key in the settings page.");
             });
 
-        // Load models
-        loadModels();
+        // // Load models
+        //         // loadModels();
+        handleRefreshModels()
 
         // Load previously generated images
         loadGeneratedImages();
 
-        // Load models
-        refreshModels();
+        // // Load models
+        // refreshModels();
     }, []);
 
-    // Function to refresh models from the database
-    const refreshModels = () => {
-        axios.get("/api/models")
-            .then((res) => setModels(res.data.models))
-            .catch((err) => console.error("Error getting models:", err));
-    };
+    // // Function to refresh models from the database
+    // const refreshModels = () => {
+    //     axios.get("/api/models")
+    //         .then((res) => setModels(res.data.models))
+    //         .catch((err) => console.error("Error getting models:", err));
+    // };
 
     // // Function to refresh models from the API
     // const handleRefreshModels = () => {
