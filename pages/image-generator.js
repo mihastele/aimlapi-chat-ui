@@ -24,7 +24,7 @@ export default function ImageGenerator() {
     const [height, setHeight] = useState(1024);
     const [numInferenceSteps, setNumInferenceSteps] = useState(30);
     const [guidanceScale, setGuidanceScale] = useState(7.5);
-    const [safetyTolerance, setSafetyTolerance] = useState("medium");
+    const [safetyTolerance, setSafetyTolerance] = useState(1);
     const [outputFormat, setOutputFormat] = useState("jpeg");
     const [numImages, setNumImages] = useState(1);
     const [seed, setSeed] = useState("");
