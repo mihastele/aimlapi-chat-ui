@@ -33,6 +33,11 @@ export default function ImageGenerator() {
     // Add this import at the top of your file
     // Inside your component, add this state
     const [selectedPreset, setSelectedPreset] = useState("Square (1024×1024)");
+    // Add these state variables at the top with your other state declarations
+    const [negativePrompt, setNegativePrompt] = useState("");
+    const [selectedSize, setSelectedSize] = useState("1024x1024");
+    const [selectedQuality, setSelectedQuality] = useState("standard");
+    const [selectedStyle, setSelectedStyle] = useState("vivid");
 
     // Define image size presets (all values are multiples of 32)
     const IMAGE_SIZE_PRESETS = [
