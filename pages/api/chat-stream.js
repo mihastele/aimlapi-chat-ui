@@ -152,8 +152,11 @@ export default async function handler(req, res) {
                 // Buffer to accumulate incomplete chunks
                 let buffer = '';
 
+                let lastLine = {};
+
                 // Process the streaming response
                 response.data.on('data', (chunk) => {
+
                     // Parse the chunk data (format depends on the API)
                     const chunkText = chunk.toString();
 
@@ -193,6 +196,12 @@ export default async function handler(req, res) {
                                             done: false 
                                         })}\n\n`);
                                     }
+
+                                    lastLine = data;
+
+                                    // const tokenCount = data.data.usage.total_tokens;
+                                    // console.log(`Tokens used: ${tokenCount}`);
+
                                 } catch (parseError) {
                                     // If we can't parse this chunk, add it back to the buffer
                                     // It might be an incomplete JSON that will be completed in the next chunk
@@ -211,30 +220,8 @@ export default async function handler(req, res) {
                     // Make a separate API call to get the token count
                     let tokenCount = 0;
                     try {
-                        // Get token usage for the completed conversation
-                        const tokenResponse = await axios.post(
-                            `${baseUrl}/v1/chat/completions`,
-                            {
-                                model: model,
-                                messages: [
-                                    ...messages,
-                                    { role: 'assistant', content: fullResponse }
-                                ],
-                                temperature: 0.7,
-                                max_tokens: 0  // We don't need any more tokens, just the count
-                            },
-                            {
-                                headers: {
-                                    'Authorization': `Bearer ${apiKey}`,
-                                    'Content-Type': 'application/json'
-                                }
-                            }
-                        );
-
-                        // Extract token count from response
-                        if (tokenResponse.data && tokenResponse.data.usage) {
-                            tokenCount = tokenResponse.data.usage.total_tokens || 0;
-                        }
+                        tokenCount = lastLine.usage.total_tokens;
+                        console.log(`Total tokens used: ${tokenCount}`);
                     } catch (error) {
                         console.error('Error getting token count:', error);
                     }
