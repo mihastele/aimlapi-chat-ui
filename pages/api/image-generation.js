@@ -82,40 +82,60 @@ export default async function handler(req, res) {
                 }
             );
 
-            // Extract all image URLs from the response
-            const images = response.data.images;
-            const actualSeed = response.data.seed;
-
             // Extract prompt and model from payload for database saving
             const { prompt, model } = payload;
+            console.log(response.data);
 
-            // Save all generated images to the database
+            if(response.data.images) {
+                // Extract all image URLs from the response
+                const images = response.data.images;
+                const actualSeed = response.data.seed;
+
+                // Save all generated images to the database
+                const savedImages = [];
+                for (const image of images) {
+                    const imageUrl = image.url;
+                    const width = image.width;
+                    const height = image.height;
+
+                    // Save each image to the database
+                    saveGeneratedImage(prompt, imageUrl, model, width, height);
+
+                    savedImages.push({
+                        image_url: imageUrl,
+                        width,
+                        height
+                    });
+                }
+
+                // Return all image URLs and other details
+                return res.status(200).json({
+                    images: savedImages,
+                    image_url: savedImages[0].image_url, // For backward compatibility
+                    width: savedImages[0].width,
+                    height: savedImages[0].height,
+                    seed: actualSeed,
+                    has_nsfw_concepts: response.data.has_nsfw_concepts || false
+                });
+            }
+
             const savedImages = [];
-            for (const image of images) {
-                const imageUrl = image.url;
-                const width = image.width;
-                const height = image.height;
+            for (const rootImage of response.data.data) {
+                const width = -1;
+                const height = -1;
+                const imageUrl = rootImage.url;
 
                 // Save each image to the database
                 saveGeneratedImage(prompt, imageUrl, model, width, height);
 
-                savedImages.push({
+                return res.status(200).json({
                     image_url: imageUrl,
                     width,
-                    height
+                    height,
+                    seed: response.data.seed,
+                    has_nsfw_concepts: response.data.has_nsfw_concepts || false
                 });
             }
-
-            // Return all image URLs and other details
-            res.status(200).json({
-                images: savedImages,
-                image_url: savedImages[0].image_url, // For backward compatibility
-                width: savedImages[0].width,
-                height: savedImages[0].height,
-                seed: actualSeed,
-                has_nsfw_concepts: response.data.has_nsfw_concepts || false
-            });
-
         }  catch (error) {
         console.error('Error generating image:', error);
 
